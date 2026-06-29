@@ -244,11 +244,16 @@ class SoundCloudSource:
         return out
 
     def _track_ref(self, t: dict, playlist: str | None) -> TrackRef:
+        art = t.get("artwork_url") or (t.get("user") or {}).get("avatar_url")
+        # SoundCloud serves a tiny 100px "-large" by default; request a bigger one.
+        if art:
+            art = art.replace("-large.", "-t200x200.")
         return TrackRef(
             url=t.get("permalink_url") or t.get("uri"),
             source=SourceType.SOUNDCLOUD,
             title=t.get("title"),
             artist=(t.get("user") or {}).get("username"),
+            artwork_url=art,
             playlist=playlist,
         )
 
@@ -273,6 +278,7 @@ class SoundCloudSource:
                         source=SourceType.SOUNDCLOUD,
                         title=entry.get("title"),
                         artist=entry.get("uploader"),
+                        artwork_url=entry.get("thumbnail"),
                         playlist=playlist,
                     )
                 )
@@ -283,6 +289,7 @@ class SoundCloudSource:
                 source=SourceType.SOUNDCLOUD,
                 title=info.get("title"),
                 artist=info.get("uploader"),
+                artwork_url=info.get("thumbnail"),
             )
         ]
 

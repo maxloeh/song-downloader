@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     url          TEXT NOT NULL,
     title        TEXT,
     playlist     TEXT,
+    artwork_url  TEXT,
     options      TEXT NOT NULL,
     status       TEXT NOT NULL,
     progress     REAL NOT NULL,
@@ -48,6 +49,10 @@ class Database:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
+            # Migrate older DBs that predate the artwork_url column.
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+            if "artwork_url" not in cols:
+                conn.execute("ALTER TABLE jobs ADD COLUMN artwork_url TEXT")
 
     async def init(self) -> None:
         await asyncio.to_thread(self._init_sync)
@@ -62,15 +67,16 @@ class Database:
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO jobs (id, source, url, title, playlist, options, status,
-                                  progress, audio_source, output_path, error,
+                INSERT INTO jobs (id, source, url, title, playlist, artwork_url, options,
+                                  status, progress, audio_source, output_path, error,
                                   created_at, updated_at)
-                VALUES (:id, :source, :url, :title, :playlist, :options, :status,
-                        :progress, :audio_source, :output_path, :error,
+                VALUES (:id, :source, :url, :title, :playlist, :artwork_url, :options,
+                        :status, :progress, :audio_source, :output_path, :error,
                         :created_at, :updated_at)
                 ON CONFLICT(id) DO UPDATE SET
                     title=excluded.title,
                     playlist=excluded.playlist,
+                    artwork_url=excluded.artwork_url,
                     status=excluded.status,
                     progress=excluded.progress,
                     audio_source=excluded.audio_source,
@@ -84,6 +90,7 @@ class Database:
                     "url": job.url,
                     "title": job.title,
                     "playlist": job.playlist,
+                    "artwork_url": job.artwork_url,
                     "options": json.dumps(job.options.model_dump()),
                     "status": job.status.value,
                     "progress": job.progress,
@@ -108,3 +115,11 @@ class Database:
 
     async def load_recent(self, limit: int = 500) -> list[Job]:
         return await asyncio.to_thread(self._load_sync, limit)
+
+    def _delete_sync(self, job_id: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+
+    async def delete(self, job_id: str) -> None:
+        async with self._lock:
+            await asyncio.to_thread(self._delete_sync, job_id)

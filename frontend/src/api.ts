@@ -21,6 +21,11 @@ export const api = {
 
   getJobs: () => jsonFetch<Job[]>("/api/jobs"),
 
+  deleteJob: (id: string) =>
+    jsonFetch<{ removed: number }>(`/api/jobs/${id}`, { method: "DELETE" }),
+
+  clearFailed: () => jsonFetch<{ removed: number }>("/api/jobs", { method: "DELETE" }),
+
   submit: (urls: string[], options: DownloadOptions) =>
     jsonFetch<{ jobs: Job[] }>("/api/download", {
       method: "POST",

@@ -19,6 +19,7 @@ export interface Job {
   url: string;
   title: string | null;
   playlist: string | null;
+  artwork_url: string | null;
   options: DownloadOptions;
   status: JobStatus;
   progress: number;

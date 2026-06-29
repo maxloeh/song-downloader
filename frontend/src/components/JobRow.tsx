@@ -5,9 +5,10 @@ import type { Job } from "../types";
 interface Props {
   job: Job;
   onRetry: (job: Job) => void;
+  onDismiss: (job: Job) => void;
 }
 
-export default function JobRow({ job, onRetry }: Props) {
+export default function JobRow({ job, onRetry, onDismiss }: Props) {
   const s = SOURCE[job.source] ?? SOURCE.unknown;
   const st = STATUS[job.status] ?? STATUS.queued;
   const isDownloading = job.status === "downloading";
@@ -32,24 +33,43 @@ export default function JobRow({ job, onRetry }: Props) {
   return (
     <div style={rowStyle}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <span
-          style={{
-            flexShrink: 0,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 34,
-            height: 34,
-            borderRadius: 9,
-            background: s.bg,
-            color: s.color,
-            fontFamily: FONT_MONO,
-            fontSize: 11,
-            fontWeight: 600,
-          }}
-        >
-          {s.initials}
-        </span>
+        {job.artwork_url ? (
+          <img
+            src={job.artwork_url}
+            alt=""
+            loading="lazy"
+            style={{
+              flexShrink: 0,
+              width: 34,
+              height: 34,
+              borderRadius: 9,
+              objectFit: "cover",
+              background: s.bg,
+            }}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
+        ) : (
+          <span
+            style={{
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 34,
+              height: 34,
+              borderRadius: 9,
+              background: s.bg,
+              color: s.color,
+              fontFamily: FONT_MONO,
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            {s.initials}
+          </span>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span
@@ -150,26 +170,47 @@ export default function JobRow({ job, onRetry }: Props) {
           </a>
         )}
         {job.status === "failed" && (
-          <button
-            type="button"
-            onClick={() => onRetry(job)}
-            style={{
-              flexShrink: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              height: 30,
-              padding: "0 12px",
-              border: "1px solid rgba(255,93,115,0.3)",
-              borderRadius: 8,
-              background: "rgba(255,93,115,0.08)",
-              color: "#ff5d73",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            ↻ Retry
-          </button>
+          <div style={{ flexShrink: 0, display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => onRetry(job)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                height: 30,
+                padding: "0 12px",
+                border: "1px solid rgba(255,93,115,0.3)",
+                borderRadius: 8,
+                background: "rgba(255,93,115,0.08)",
+                color: "#ff5d73",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              ↻ Retry
+            </button>
+            <button
+              type="button"
+              onClick={() => onDismiss(job)}
+              title="Dismiss"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 30,
+                height: 30,
+                border: `1px solid ${T.borderStrong}`,
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.04)",
+                color: T.muted,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              ✕
+            </button>
+          </div>
         )}
       </div>
 

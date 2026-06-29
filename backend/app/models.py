@@ -45,6 +45,7 @@ class TrackRef(BaseModel):
     source: SourceType
     title: str | None = None
     artist: str | None = None
+    artwork_url: str | None = None
     # The playlist/album this track belongs to, used for the output folder.
     playlist: str | None = None
 
@@ -64,6 +65,7 @@ class Job(BaseModel):
     url: str
     title: str | None = None
     playlist: str | None = None
+    artwork_url: str | None = None
     options: DownloadOptions
     status: JobStatus = JobStatus.QUEUED
     progress: float = 0.0  # 0..100

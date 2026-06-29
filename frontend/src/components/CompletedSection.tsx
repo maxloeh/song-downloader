@@ -181,9 +181,19 @@ export default function CompletedSection({ jobs, refreshKey }: Props) {
                     borderBottom: "1px solid rgba(255,255,255,0.04)",
                   }}
                 >
-                  <span
-                    style={{ flexShrink: 0, width: 7, height: 7, borderRadius: "50%", background: s.color }}
-                  />
+                  {job.artwork_url ? (
+                    <img
+                      src={job.artwork_url}
+                      alt=""
+                      loading="lazy"
+                      style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 6, objectFit: "cover" }}
+                      onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = "none")}
+                    />
+                  ) : (
+                    <span
+                      style={{ flexShrink: 0, width: 7, height: 7, borderRadius: "50%", background: s.color }}
+                    />
+                  )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{

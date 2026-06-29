@@ -149,12 +149,27 @@ class JobQueue:
                     url=track.url,
                     title=track.title,
                     playlist=track.playlist,
+                    artwork_url=track.artwork_url,
                     options=options,
                 )
                 await self._register(job)
                 await self._queue.put(job)
                 created.append(job)
         return created
+
+    async def remove_job(self, job_id: str) -> bool:
+        job = self._jobs.pop(job_id, None)
+        if job is None:
+            return False
+        await self._db.delete(job_id)
+        self.broadcaster.publish({"type": "remove", "id": job_id})
+        return True
+
+    async def clear_failed(self) -> int:
+        ids = [j.id for j in self._jobs.values() if j.status == JobStatus.FAILED]
+        for jid in ids:
+            await self.remove_job(jid)
+        return len(ids)
 
     # ── internals ────────────────────────────────────────────────────────────
     async def _register(self, job: Job) -> None:

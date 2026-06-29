@@ -88,6 +88,8 @@ class SpotifySource:
                     url=song.url,
                     source=SourceType.SPOTIFY,
                     title=title,
+                    artist=getattr(song, "artist", None),
+                    artwork_url=getattr(song, "cover_url", None),
                     playlist=playlist or getattr(song, "list_name", None),
                 )
             )

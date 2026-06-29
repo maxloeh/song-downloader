@@ -60,6 +60,12 @@ export default function App() {
           setJobs(map);
         } else if (data.type === "job") {
           upsertJob(data.job as Job);
+        } else if (data.type === "remove") {
+          setJobs((prev) => {
+            const next = { ...prev };
+            delete next[data.id as string];
+            return next;
+          });
         }
       };
     }
@@ -89,11 +95,36 @@ export default function App() {
     [handleSubmit],
   );
 
+  const handleDismiss = useCallback((job: Job) => {
+    setJobs((prev) => {
+      const next = { ...prev };
+      delete next[job.id];
+      return next;
+    });
+    api.deleteJob(job.id).catch(() => {});
+  }, []);
+
+  const handleClearFailed = useCallback(() => {
+    setJobs((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([, j]) => j.status !== "failed")),
+    );
+    api.clearFailed().catch(() => {});
+  }, []);
+
   const sortedJobs = useMemo(
     () => Object.values(jobs).sort((a, b) => b.created_at - a.created_at),
     [jobs],
   );
-  const queueJobs = sortedJobs.filter((j) => j.status !== "done");
+
+  // Hide a failed job when a newer job for the same URL has since succeeded.
+  const doneUrls = useMemo(
+    () => new Set(sortedJobs.filter((j) => j.status === "done").map((j) => j.url)),
+    [sortedJobs],
+  );
+  const queueJobs = sortedJobs.filter(
+    (j) => j.status !== "done" && !(j.status === "failed" && doneUrls.has(j.url)),
+  );
+  const failedCount = queueJobs.filter((j) => j.status === "failed").length;
 
   const counts = useMemo(() => {
     const c = { queued: 0, active: 0, done: 0, failed: 0 };
@@ -204,13 +235,33 @@ export default function App() {
                   >
                     Queue
                   </h3>
-                  <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.faint2 }}>
-                    {countsText}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.faint2 }}>
+                      {countsText}
+                    </span>
+                    {failedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearFailed}
+                        style={{
+                          fontFamily: FONT_MONO,
+                          fontSize: 11,
+                          color: "#ff5d73",
+                          background: "rgba(255,93,115,0.08)",
+                          border: "1px solid rgba(255,93,115,0.25)",
+                          borderRadius: 7,
+                          padding: "3px 9px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Clear failed
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                   {queueJobs.map((job) => (
-                    <JobRow key={job.id} job={job} onRetry={handleRetry} />
+                    <JobRow key={job.id} job={job} onRetry={handleRetry} onDismiss={handleDismiss} />
                   ))}
                 </div>
               </div>

@@ -61,6 +61,22 @@ def get_job(job_id: str, request: Request, _: str = Depends(require_auth)) -> Jo
     return job
 
 
+@router.delete("/jobs")
+async def clear_failed_jobs(request: Request, _: str = Depends(require_auth)) -> dict:
+    removed = await request.app.state.queue.clear_failed()
+    return {"removed": removed}
+
+
+@router.delete("/jobs/{job_id}")
+async def delete_job(job_id: str, request: Request, _: str = Depends(require_auth)) -> dict:
+    ok = await request.app.state.queue.remove_job(job_id)
+    if not ok:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"removed": 1}
+
+
 @router.get("/ws-ticket")
 def ws_ticket(_: str = Depends(require_auth)) -> dict:
     """Issue a short-lived ticket the browser uses to open the progress WS."""
