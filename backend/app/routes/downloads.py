@@ -43,9 +43,10 @@ async def create_download(
     request: Request,
     _: str = Depends(require_auth),
 ) -> dict:
-    queue = request.app.state.queue
-    jobs = await queue.submit_urls(req.urls, req.options)
-    return {"jobs": [j.model_dump() for j in jobs]}
+    # Enumeration runs in the background (it can be slow for playlists); jobs
+    # stream to the client over the WebSocket as they resolve.
+    request.app.state.queue.submit_urls(req.urls, req.options)
+    return {"accepted": True}
 
 
 @router.get("/jobs", response_model=list[Job])

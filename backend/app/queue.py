@@ -133,57 +133,61 @@ class JobQueue:
         active = {JobStatus.QUEUED, JobStatus.DOWNLOADING, JobStatus.CONVERTING}
         return any(j.status in active for j in self._jobs.values())
 
-    async def submit_urls(self, urls: list[str], options: DownloadOptions) -> list[Job]:
-        """Enumerate each URL and enqueue a job per resolved track."""
-        created: list[Job] = []
+    def submit_urls(self, urls: list[str], options: DownloadOptions) -> None:
+        """Kick off enumeration in the background; returns immediately.
+
+        Each URL gets a 'Resolving…' placeholder right away (streamed to the UI
+        over the WebSocket); enumeration then replaces it with one job per track,
+        or marks it failed. Enumeration can be slow (Spotify playlists), so it
+        must never block the HTTP request.
+        """
         for raw in urls:
             url = raw.strip()
-            if not url:
-                continue
-            try:
-                source = resolve_source(url)
-            except UnsupportedURLError as exc:
-                job = Job(
-                    source=SourceType.SOUNDCLOUD,  # placeholder; immediately failed
-                    url=url,
-                    options=options,
-                    status=JobStatus.FAILED,
-                    error=str(exc),
-                )
-                await self._register(job)
-                created.append(job)
-                continue
+            if url:
+                asyncio.create_task(self._resolve_and_enqueue(url, options))
 
-            try:
-                tracks = await asyncio.to_thread(source.enumerate, url)
-            except Exception as exc:  # enumeration failure -> one failed job
-                log.exception("enumerate failed for %s", url)
-                job = Job(
-                    source=source.source_type,
-                    url=url,
-                    options=options,
-                    status=JobStatus.FAILED,
-                    error=_humanize_error(exc, options.youtube_fallback),
-                )
-                await self._register(job)
-                created.append(job)
-                continue
+    async def _resolve_and_enqueue(self, url: str, options: DownloadOptions) -> None:
+        try:
+            source = resolve_source(url)
+        except UnsupportedURLError as exc:
+            await self._register(
+                Job(source=SourceType.SOUNDCLOUD, url=url, options=options,
+                    status=JobStatus.FAILED, error=str(exc))
+            )
+            return
 
-            for track in tracks:
-                job = Job(
-                    source=track.source,
-                    url=track.url,
-                    title=track.title,
-                    playlist=track.playlist,
-                    artwork_url=track.artwork_url,
-                    artist=track.artist,
-                    duration=track.duration,
-                    options=options,
-                )
-                await self._register(job)
-                await self._queue.put(job)
-                created.append(job)
-        return created
+        # Immediate placeholder so the user sees feedback while it resolves.
+        placeholder = Job(
+            source=source.source_type, url=url, options=options,
+            title="Resolving tracks…", status=JobStatus.QUEUED,
+        )
+        await self._register(placeholder)
+
+        try:
+            tracks = await asyncio.to_thread(source.enumerate, url)
+        except Exception as exc:
+            log.exception("enumerate failed for %s", url)
+            placeholder.status = JobStatus.FAILED
+            placeholder.title = None
+            placeholder.error = _humanize_error(exc, options.youtube_fallback)
+            await self._persist_update(placeholder)
+            return
+
+        # Replace the placeholder with one real job per resolved track.
+        await self.remove_job(placeholder.id)
+        for track in tracks:
+            job = Job(
+                source=track.source,
+                url=track.url,
+                title=track.title,
+                playlist=track.playlist,
+                artwork_url=track.artwork_url,
+                artist=track.artist,
+                duration=track.duration,
+                options=options,
+            )
+            await self._register(job)
+            await self._queue.put(job)
 
     async def remove_job(self, job_id: str) -> bool:
         job = self._jobs.pop(job_id, None)

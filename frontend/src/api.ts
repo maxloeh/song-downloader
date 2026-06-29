@@ -51,7 +51,7 @@ export const api = {
   clearFailed: () => jsonFetch<{ removed: number }>("/api/jobs", { method: "DELETE" }),
 
   submit: (urls: string[], options: DownloadOptions) =>
-    jsonFetch<{ jobs: Job[] }>("/api/download", {
+    jsonFetch<{ accepted: boolean }>("/api/download", {
       method: "POST",
       body: JSON.stringify({ urls, options }),
     }),

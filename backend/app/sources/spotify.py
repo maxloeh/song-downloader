@@ -19,15 +19,28 @@ from .base import ProgressCallback
 _HOST_RE = re.compile(r"https?://(?:open|play)\.spotify\.com/", re.IGNORECASE)
 _URI_RE = re.compile(r"^spotify:(track|album|playlist):", re.IGNORECASE)
 
-# spotDL is initialised once (it spins up a downloader + Spotify client).
+# spotDL's SpotifyClient is a process-global singleton that can only be
+# initialised ONCE. So we build the Spotdl client a single time and just adjust
+# its per-download format/bitrate, rather than reconstructing it.
 _spotdl_lock = threading.Lock()
 _spotdl_client = None
-_spotdl_format: str | None = None
-_spotdl_bitrate: str | None = None
+# spotDL isn't safe for concurrent use from our worker threads (shared client +
+# internal asyncio), so all spotDL search/download calls are serialized.
+_spotdl_op_lock = threading.Lock()
 
 
 def _spotdl_bitrate_value(bitrate: str) -> str:
     return "disable" if bitrate == "best" else bitrate
+
+
+def _ensure_event_loop() -> None:
+    """spotDL calls asyncio.get_event_loop(); worker threads have none in 3.12."""
+    import asyncio
+
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
 
 
 def get_spotify_credentials() -> tuple[str, str]:
@@ -71,48 +84,54 @@ def verify_spotify_credentials(client_id: str, client_secret: str) -> bool:
 
 
 def reset_spotdl_client() -> None:
-    """Drop the memoised client so it rebuilds with new credentials."""
-    global _spotdl_client, _spotdl_format, _spotdl_bitrate
+    """Drop our client AND spotDL's singleton so it can re-init with new creds."""
+    global _spotdl_client
     with _spotdl_lock:
         _spotdl_client = None
-        _spotdl_format = None
-        _spotdl_bitrate = None
+        try:
+            from spotdl.utils.spotify import SpotifyClient
+
+            SpotifyClient._instance = None
+        except Exception:
+            pass
 
 
-def _get_spotdl(opts: DownloadOptions):
-    """Lazily build (and memoise) a configured Spotdl client for these options."""
-    global _spotdl_client, _spotdl_format, _spotdl_bitrate
+def _build_spotdl():
     from spotdl import Spotdl
 
     settings = get_settings()
-    with _spotdl_lock:
-        if (
-            _spotdl_client is not None
-            and _spotdl_format == opts.format
-            and _spotdl_bitrate == opts.bitrate
-        ):
-            return _spotdl_client
+    cid, secret = get_spotify_credentials()
+    downloader_settings = {
+        "output": str(settings.download_dir / "{list-name}" / "{artists} - {title}.{output-ext}"),
+        "format": settings.default_format,
+        "bitrate": _spotdl_bitrate_value(settings.default_bitrate),
+        "audio_providers": settings.spotdl_audio_provider_list,
+        "threads": 1,
+        "print_errors": False,
+        "simple_tui": True,
+    }
+    return Spotdl(
+        client_id=cid or "5f573c9620494bae87890c0f08a60293",
+        client_secret=secret or "212476d9b0f3472eaa762d90b19b0ba8",
+        no_cache=not spotify_configured(),
+        downloader_settings=downloader_settings,
+    )
 
-        downloader_settings = {
-            "output": str(settings.download_dir / "{list-name}" / "{artists} - {title}.{output-ext}"),
-            "format": opts.format,
-            "bitrate": _spotdl_bitrate_value(opts.bitrate),
-            "audio_providers": settings.spotdl_audio_provider_list,
-            "threads": 1,
-            "print_errors": False,
-            "simple_tui": True,
-        }
-        cid, secret = get_spotify_credentials()
-        client = Spotdl(
-            client_id=cid or "5f573c9620494bae87890c0f08a60293",
-            client_secret=secret or "212476d9b0f3472eaa762d90b19b0ba8",
-            no_cache=not spotify_configured(),
-            downloader_settings=downloader_settings,
-        )
-        _spotdl_client = client
-        _spotdl_format = opts.format
-        _spotdl_bitrate = opts.bitrate
-        return client
+
+def _get_spotdl(opts: DownloadOptions):
+    """Return the singleton Spotdl client, updating its per-download settings.
+
+    spotDL can only initialise its Spotify client once per process, so we build
+    it a single time and mutate the downloader's format/bitrate per request.
+    """
+    global _spotdl_client
+    with _spotdl_lock:
+        if _spotdl_client is None:
+            _spotdl_client = _build_spotdl()
+        s = _spotdl_client.downloader.settings
+        s["format"] = opts.format
+        s["bitrate"] = _spotdl_bitrate_value(opts.bitrate)
+        return _spotdl_client
 
 
 class SpotifySource:
@@ -123,8 +142,10 @@ class SpotifySource:
         return bool(_HOST_RE.search(u) or _URI_RE.match(u))
 
     def enumerate(self, url: str) -> list[TrackRef]:
-        client = _get_spotdl(DownloadOptions())
-        songs = client.search([url])
+        with _spotdl_op_lock:
+            _ensure_event_loop()
+            client = _get_spotdl(DownloadOptions())
+            songs = client.search([url])
         # Use the album/playlist name as folder when more than one song.
         playlist = None
         if len(songs) > 1:
@@ -151,16 +172,16 @@ class SpotifySource:
         opts: DownloadOptions,
         on_progress: ProgressCallback,
     ) -> Path:
-        client = _get_spotdl(opts)
-
         on_progress(5.0, "downloading", "youtube-music")
-        songs = client.search([track.url])
-        if not songs:
-            raise RuntimeError(f"spotDL could not resolve the Spotify URL: {track.url}")
-        song = songs[0]
-
-        on_progress(20.0, "downloading", "youtube-music")
-        _song, path = client.download(song)
+        with _spotdl_op_lock:
+            _ensure_event_loop()
+            client = _get_spotdl(opts)
+            songs = client.search([track.url])
+            if not songs:
+                raise RuntimeError(f"spotDL could not resolve the Spotify URL: {track.url}")
+            song = songs[0]
+            on_progress(20.0, "downloading", "youtube-music")
+            _song, path = client.download(song)
         if path is None:
             raise RuntimeError(
                 f"spotDL found no downloadable YouTube match for: {track.title or track.url}"

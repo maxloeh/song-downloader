@@ -111,9 +111,10 @@ export default function App() {
   const handleSubmit = useCallback(
     async (urls: string[], options: DownloadOptions) => {
       try {
-        const res = await api.submit(urls, options);
-        res.jobs.forEach(upsertJob);
+        await api.submit(urls, options);
         setError(null);
+        // Jobs stream in over the WebSocket; also pull once as a fallback.
+        setTimeout(() => api.getJobs().then((list) => list.forEach(upsertJob)).catch(() => {}), 500);
       } catch (e) {
         setError(String(e));
       }
