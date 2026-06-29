@@ -49,9 +49,19 @@ COPY --from=frontend /build/dist ./backend/static
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Optional: bake default Spotify API credentials into the image so every
+# instance shares one Spotify app (friends don't need to create their own).
+# Passed at build time from CI secrets — never committed to the repo. NOTE: a
+# value baked here IS extractable from the (public) image; use a dedicated app.
+# Users can still override per-instance via the in-app "Connect Spotify" panel.
+ARG SPOTIFY_CLIENT_ID=""
+ARG SPOTIFY_CLIENT_SECRET=""
+
 ENV PYTHONUNBUFFERED=1 \
     DOWNLOAD_DIR=/downloads \
-    PORT=8080
+    PORT=8080 \
+    SPOTIFY_CLIENT_ID=$SPOTIFY_CLIENT_ID \
+    SPOTIFY_CLIENT_SECRET=$SPOTIFY_CLIENT_SECRET
 
 RUN mkdir -p /downloads && chown -R appuser:appuser /downloads /app
 USER appuser

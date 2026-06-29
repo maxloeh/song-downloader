@@ -33,6 +33,23 @@ Full walkthrough: [`install/README.md`](install/README.md).
 > GHCR on every push to `main`) and the package set to **public** — see
 > [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
 
+### Optional: one shared Spotify app for everyone (maintainer)
+
+So friends don't each create a Spotify Developer app, bake yours into the image:
+
+1. Create a **dedicated** app at <https://developer.spotify.com/dashboard> (use a
+   throwaway one — see caveat below).
+2. In the repo: **Settings → Secrets and variables → Actions → New repository
+   secret** — add `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
+3. Re-run the **Build & publish image** workflow. Done — every instance now uses
+   your app by default; a user can still override it in their own Connect panel.
+
+> ⚠️ The secret gets **baked into the public image** and is therefore extractable.
+> With the client-credentials flow it only allows reading public catalog metadata
+> (no user data, no downloads), so the worst case is shared rate limits or Spotify
+> disabling that one app — hence "dedicated app." The secret is **not** stored in
+> the repo (only injected from the Actions secret at build time).
+
 ---
 
 ## How it works (read this)

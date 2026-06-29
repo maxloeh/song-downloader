@@ -41,9 +41,10 @@ choose a **username and password** — these are just for you. Done!
 ## Using it
 - Paste a SoundCloud or Spotify link, pick a format/quality, hit **Download**.
 - Finished songs are saved to **`Music/music-dl`** in your home folder.
-- Optional, in the app: connect **Spotify** (for better metadata) and your
-  **SoundCloud** account (for tracks that need a login). Each has a "Connect"
-  panel with step-by-step instructions.
+- **Spotify already works** — no setup needed (it's preconfigured).
+- Optional: connect your **SoundCloud** account in the app (only needed for
+  private tracks or original-quality downloads) — there's a "Connect" panel with
+  step-by-step instructions.
 
 ## Everyday use
 - **Open it again:** just go to http://localhost:8080 (it keeps running in the
