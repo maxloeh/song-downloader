@@ -33,14 +33,18 @@ def _spotdl_bitrate_value(bitrate: str) -> str:
     return "disable" if bitrate == "best" else bitrate
 
 
-def _ensure_event_loop() -> None:
-    """spotDL calls asyncio.get_event_loop(); worker threads have none in 3.12."""
+def _bind_spotdl_loop(client) -> None:
+    """Make the current worker thread use spotDL's own event loop.
+
+    spotDL runs `self.loop.run_until_complete(asyncio.gather(...))`, and gather
+    binds futures to the *current* thread's loop. Since our download workers run
+    in rotating threads, we must point each at spotDL's loop or the futures end
+    up "on a different loop". Calls are serialized so the loop is never run
+    concurrently.
+    """
     import asyncio
 
-    try:
-        asyncio.get_event_loop()
-    except RuntimeError:
-        asyncio.set_event_loop(asyncio.new_event_loop())
+    asyncio.set_event_loop(client.downloader.loop)
 
 
 def get_spotify_credentials() -> tuple[str, str]:
@@ -143,8 +147,8 @@ class SpotifySource:
 
     def enumerate(self, url: str) -> list[TrackRef]:
         with _spotdl_op_lock:
-            _ensure_event_loop()
             client = _get_spotdl(DownloadOptions())
+            _bind_spotdl_loop(client)
             songs = client.search([url])
         # Use the album/playlist name as folder when more than one song.
         playlist = None
@@ -174,8 +178,8 @@ class SpotifySource:
     ) -> Path:
         on_progress(5.0, "downloading", "youtube-music")
         with _spotdl_op_lock:
-            _ensure_event_loop()
             client = _get_spotdl(opts)
+            _bind_spotdl_loop(client)
             songs = client.search([track.url])
             if not songs:
                 raise RuntimeError(f"spotDL could not resolve the Spotify URL: {track.url}")
