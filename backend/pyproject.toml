@@ -4,14 +4,16 @@ version = "0.1.0"
 description = "Self-hosted music downloader (SoundCloud + Spotify) with full metadata + cover art."
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.111",
-    "uvicorn[standard]>=0.30",
-    "pydantic>=2.7",
-    "pydantic-settings>=2.3",
-    "python-multipart>=0.0.9",
-    "yt-dlp>=2024.0.0",
+    # spotdl pins a narrow FastAPI range, so fastapi/uvicorn/pydantic are left
+    # unpinned here to let spotdl's resolver choose compatible versions.
     "spotdl>=4.2.0",
+    "yt-dlp>=2024.0.0",
     "mutagen>=1.47",
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2",
+    "pydantic-settings",
+    "python-multipart",
 ]
 
 [project.optional-dependencies]

@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,20 +36,20 @@ class Settings(BaseSettings):
     download_dir: Path = Path("/downloads")
     output_template: str = "%(playlist_title)s/%(title)s.%(ext)s"
 
-    # spotDL audio providers (comma-separated in env -> list here)
-    spotdl_audio_providers: list[str] = ["youtube-music", "youtube"]
+    # spotDL audio providers, comma-separated. Kept as a string because
+    # pydantic-settings JSON-decodes list-typed env vars before validation,
+    # which would reject a plain comma-separated value. Use the
+    # `spotdl_audio_provider_list` property to get the parsed list.
+    spotdl_audio_providers: str = "youtube-music,youtube"
 
     # Maintenance / server
     ytdlp_auto_update: bool = True
     host: str = "0.0.0.0"
     port: int = 8080
 
-    @field_validator("spotdl_audio_providers", mode="before")
-    @classmethod
-    def _split_providers(cls, v: object) -> object:
-        if isinstance(v, str):
-            return [p.strip() for p in v.split(",") if p.strip()]
-        return v
+    @property
+    def spotdl_audio_provider_list(self) -> list[str]:
+        return [p.strip() for p in self.spotdl_audio_providers.split(",") if p.strip()]
 
     @property
     def spotify_configured(self) -> bool:

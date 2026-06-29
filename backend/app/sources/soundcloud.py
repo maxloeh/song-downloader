@@ -13,6 +13,10 @@ _SOUNDCLOUD_RE = re.compile(r"^https?://(?:www\.|m\.|on\.)?soundcloud\.com/", re
 # "on.soundcloud.com" short links and api links are also accepted via the host check.
 _HOST_RE = re.compile(r"https?://[^/]*soundcloud\.com", re.IGNORECASE)
 
+# Containers ffmpeg can embed cover art into. WAV notably cannot, so embedding
+# must be skipped for it or the whole download fails at post-processing.
+_EMBED_THUMBNAIL_FORMATS = {"mp3", "m4a", "opus", "ogg", "flac"}
+
 
 def split_artist_title(raw_title: str) -> tuple[str | None, str]:
     """Parse a "Artist - Title" pattern, common in SoundCloud track titles."""
@@ -108,11 +112,14 @@ class SoundCloudSource:
         else:
             outtmpl = str(settings.download_dir / "%(title)s.%(ext)s")
 
+        embed_cover = opts.format in _EMBED_THUMBNAIL_FORMATS
         ydl_opts: dict = {
             "quiet": True,
             "no_warnings": True,
             "outtmpl": outtmpl,
-            "writethumbnail": True,
+            # Only fetch the thumbnail when the target container can embed it,
+            # otherwise it leaves orphan image files and breaks WAV downloads.
+            "writethumbnail": embed_cover,
             "format": "bestaudio/best",
             "progress_hooks": [hook],
             "postprocessor_hooks": [pp_hook],
@@ -148,9 +155,11 @@ class SoundCloudSource:
                 "preferredquality": quality,
             }
         )
-        # Embed cover art, then write tags. Order matters: thumbnail before metadata.
+        # Write tags. Then embed cover art, but only for containers that support
+        # it (WAV cannot hold a cover and would fail the whole post-process).
         pps.append({"key": "FFmpegMetadata", "add_metadata": True})
-        pps.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
+        if opts.format in _EMBED_THUMBNAIL_FORMATS:
+            pps.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
         return pps
 
     def _apply_auth(self, opts: dict) -> None:

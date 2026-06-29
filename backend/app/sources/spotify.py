@@ -48,7 +48,7 @@ def _get_spotdl(opts: DownloadOptions):
             "output": str(settings.download_dir / "{list-name}" / "{artists} - {title}.{output-ext}"),
             "format": opts.format,
             "bitrate": _spotdl_bitrate_value(opts.bitrate),
-            "audio_providers": settings.spotdl_audio_providers,
+            "audio_providers": settings.spotdl_audio_provider_list,
             "threads": 1,
             "print_errors": False,
             "simple_tui": True,

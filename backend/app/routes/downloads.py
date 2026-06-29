@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import logging
 
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
-from ..auth import require_auth
+from ..auth import issue_ws_ticket, require_auth, verify_ws_ticket
 from ..config import get_settings
 from ..models import (
     SUPPORTED_BITRATES,
@@ -62,27 +61,16 @@ def get_job(job_id: str, request: Request, _: str = Depends(require_auth)) -> Jo
     return job
 
 
-def _ws_authorized(websocket: WebSocket) -> bool:
-    """Validate Basic Auth on the WebSocket handshake."""
-    import secrets
-
-    header = websocket.headers.get("authorization", "")
-    if not header.lower().startswith("basic "):
-        return False
-    try:
-        decoded = base64.b64decode(header.split(" ", 1)[1]).decode("utf-8")
-        username, _, password = decoded.partition(":")
-    except Exception:
-        return False
-    s = get_settings()
-    return secrets.compare_digest(username, s.app_username) and secrets.compare_digest(
-        password, s.app_password
-    )
+@router.get("/ws-ticket")
+def ws_ticket(_: str = Depends(require_auth)) -> dict:
+    """Issue a short-lived ticket the browser uses to open the progress WS."""
+    return {"ticket": issue_ws_ticket()}
 
 
 @router.websocket("/ws")
 async def progress_ws(websocket: WebSocket) -> None:
-    if not _ws_authorized(websocket):
+    ticket = websocket.query_params.get("ticket", "")
+    if not verify_ws_ticket(ticket):
         await websocket.close(code=1008)
         return
     await websocket.accept()

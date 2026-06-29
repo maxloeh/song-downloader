@@ -33,8 +33,18 @@ export default function App() {
     let closed = false;
     let retry: ReturnType<typeof setTimeout>;
 
-    function connect() {
-      const ws = openProgressSocket();
+    async function connect() {
+      let ws: WebSocket;
+      try {
+        ws = await openProgressSocket();
+      } catch {
+        if (!closed) retry = setTimeout(connect, 2000);
+        return;
+      }
+      if (closed) {
+        ws.close();
+        return;
+      }
       socketRef.current = ws;
       ws.onopen = () => setConnected(true);
       ws.onclose = () => {

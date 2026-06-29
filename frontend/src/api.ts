@@ -27,6 +27,8 @@ export const api = {
       body: JSON.stringify({ urls, options }),
     }),
 
+  getWsTicket: () => jsonFetch<{ ticket: string }>("/api/ws-ticket"),
+
   listFiles: () => jsonFetch<FileItem[]>("/api/files"),
 
   fileUrl: (path: string) =>
@@ -36,8 +38,15 @@ export const api = {
     `/api/files/zip${path ? `?path=${encodeURIComponent(path)}` : ""}`,
 };
 
-/** Open the progress WebSocket. Returns the socket; caller wires handlers. */
-export function openProgressSocket(): WebSocket {
+/**
+ * Open the progress WebSocket. Browsers can't send Basic Auth on a WS
+ * handshake, so we first fetch a short-lived ticket over authenticated HTTP and
+ * pass it as a query param. Returns the socket; caller wires handlers.
+ */
+export async function openProgressSocket(): Promise<WebSocket> {
+  const { ticket } = await api.getWsTicket();
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  return new WebSocket(`${proto}://${location.host}/api/ws`);
+  return new WebSocket(
+    `${proto}://${location.host}/api/ws?ticket=${encodeURIComponent(ticket)}`,
+  );
 }

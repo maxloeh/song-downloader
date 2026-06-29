@@ -29,12 +29,19 @@ RUN useradd --create-home --uid 1000 appuser
 WORKDIR /app
 
 # Python deps. Install the backend package + engines.
+# NB: spotdl pins a narrow FastAPI range (e.g. >=0.103,<0.104), so we install
+# spotdl first and leave fastapi/uvicorn/pydantic UNPINNED to let its resolver
+# pick compatible versions. Our backend only uses long-stable FastAPI features.
 COPY backend/pyproject.toml ./backend/pyproject.toml
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir \
-        "fastapi>=0.111" "uvicorn[standard]>=0.30" "pydantic>=2.7" \
-        "pydantic-settings>=2.3" "python-multipart>=0.0.9" \
-        "yt-dlp>=2024.0.0" "spotdl>=4.2.0" "mutagen>=1.47"
+        "spotdl>=4.2.0" \
+        "yt-dlp>=2024.0.0" \
+        "mutagen>=1.47" \
+        "fastapi" \
+        "uvicorn[standard]" \
+        "pydantic-settings" \
+        "python-multipart"
 
 # App code + built frontend.
 COPY backend/ ./backend/
