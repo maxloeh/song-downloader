@@ -28,24 +28,45 @@ from .sources.base import UnsupportedURLError
 log = logging.getLogger("music-dl.queue")
 
 
-def _humanize_error(exc: object) -> str:
-    """Translate noisy engine errors into actionable messages for the UI."""
+def _humanize_error(exc: object, fallback_enabled: bool) -> str:
+    """Translate noisy engine errors into actionable, context-aware messages.
+
+    Tailors the advice to whether a SoundCloud account is connected and whether
+    the YouTube fallback was enabled for this job.
+    """
+    from .sources.soundcloud import get_soundcloud_token
+
     msg = str(exc)
     low = msg.lower()
-    if "drm protected" in low or "no video formats" in low or "only images are available" in low:
-        return (
-            "SoundCloud only offers encrypted/monetized streams for this track, so it can't be "
-            "downloaded. If it's a private or original-quality track you have access to, connect "
-            "your SoundCloud account (panel above) and retry. Many monetized or licensed tracks "
-            "are protected by SoundCloud and can't be fetched by any tool."
-        )
-    if "http error 403" in low or "forbidden" in low:
-        return (
-            "Access denied by the source (HTTP 403). The uploader may have disabled downloads. "
-            "Connect your SoundCloud account (panel above) to fetch original / private files you "
-            "have access to."
-        )
-    return msg
+    connected = bool(get_soundcloud_token())
+
+    drm = any(s in low for s in ("drm protected", "no video formats", "no formats",
+                                 "only images are available"))
+    forbidden = "http error 403" in low or "forbidden" in low
+    if not (drm or forbidden):
+        return msg
+
+    if drm:
+        parts = [
+            "SoundCloud serves this track only as protected/encrypted streams, so it can't be "
+            "downloaded directly from SoundCloud."
+        ]
+    else:
+        parts = [
+            "SoundCloud denied access to this track's file (HTTP 403) — the uploader has "
+            "disabled downloads."
+        ]
+    # Suggesting "connect your account" only makes sense if it isn't already.
+    if forbidden and not connected:
+        parts.append("If it's a private track you have access to, connect your SoundCloud "
+                     "account (panel above).")
+    # The real fix for protected/disabled tracks is the YouTube fallback.
+    if fallback_enabled:
+        parts.append("A matching YouTube source couldn't be downloaded either.")
+    else:
+        parts.append("Turn on “fall back to a YouTube match” above and retry to fetch "
+                     "it from YouTube instead.")
+    return " ".join(parts)
 
 
 class Broadcaster:
@@ -137,7 +158,7 @@ class JobQueue:
                     url=url,
                     options=options,
                     status=JobStatus.FAILED,
-                    error=_humanize_error(exc),
+                    error=_humanize_error(exc, options.youtube_fallback),
                 )
                 await self._register(job)
                 created.append(job)
@@ -240,7 +261,7 @@ class JobQueue:
         except Exception as exc:
             log.exception("download failed for %s", job.url)
             job.status = JobStatus.FAILED
-            job.error = _humanize_error(exc)
+            job.error = _humanize_error(exc, job.options.youtube_fallback)
             job.progress = 0.0
             await self._persist_update(job)
             return

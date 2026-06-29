@@ -91,7 +91,9 @@ export default function App() {
   );
 
   const handleRetry = useCallback(
-    (job: Job) => handleSubmit([job.url], job.options),
+    // Retry implies "try harder" — ensure the YouTube fallback is on so
+    // download-disabled / protected tracks can still resolve.
+    (job: Job) => handleSubmit([job.url], { ...job.options, youtube_fallback: true }),
     [handleSubmit],
   );
 
