@@ -34,6 +34,8 @@ class DownloadOptions(BaseModel):
     bitrate: str = "320k"
     # SoundCloud only: request the uploader's original file when available.
     soundcloud_original: bool = False
+    # When SoundCloud can't serve a track (DRM/blocked), match it on YouTube.
+    youtube_fallback: bool = True
 
 
 class TrackRef(BaseModel):
@@ -42,6 +44,7 @@ class TrackRef(BaseModel):
     url: str
     source: SourceType
     title: str | None = None
+    artist: str | None = None
     # The playlist/album this track belongs to, used for the output folder.
     playlist: str | None = None
 

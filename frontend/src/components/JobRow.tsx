@@ -225,10 +225,10 @@ export default function JobRow({ job, onRetry }: Props) {
         </div>
       )}
 
-      {job.source === "spotify" && job.status === "done" && (
+      {job.audio_source?.toLowerCase().includes("youtube") && job.status === "done" && (
         <div style={{ marginTop: 9, fontFamily: FONT_MONO, fontSize: 10.5, color: T.faint2 }}>
-          ↳ audio matched from YouTube{job.audio_source ? ` (${job.audio_source})` : ""} · bitrate
-          capped by source
+          ↳ {job.source === "soundcloud" ? "SoundCloud unavailable — matched from" : "audio matched from"}{" "}
+          YouTube · bitrate capped by source
         </div>
       )}
 

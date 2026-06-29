@@ -50,6 +50,7 @@ export default function UrlForm({ config, onSubmit }: Props) {
   const [format, setFormat] = useState(config.default_format);
   const [bitrate, setBitrate] = useState(config.default_bitrate);
   const [scOriginal, setScOriginal] = useState(false);
+  const [ytFallback, setYtFallback] = useState(true);
   const [busy, setBusy] = useState(false);
   const [openTip, setOpenTip] = useState<number | null>(null);
 
@@ -72,7 +73,7 @@ export default function UrlForm({ config, onSubmit }: Props) {
     try {
       await onSubmit(
         valid.map((d) => d.url),
-        { format, bitrate, soundcloud_original: scOriginal },
+        { format, bitrate, soundcloud_original: scOriginal, youtube_fallback: ytFallback },
       );
       setText("");
     } finally {
@@ -304,42 +305,16 @@ export default function UrlForm({ config, onSubmit }: Props) {
         </button>
       </div>
 
-      {/* Toggle */}
-      <div style={{ marginTop: 15, display: "flex", alignItems: "center", gap: 10 }}>
-        <button
-          type="button"
-          onClick={() => setScOriginal((v) => !v)}
-          aria-pressed={scOriginal}
-          style={{
-            position: "relative",
-            width: 40,
-            height: 23,
-            borderRadius: 999,
-            border: "none",
-            cursor: "pointer",
-            background: scOriginal ? "#ff7a2f" : "#2a2e39",
-            transition: "background 0.2s",
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              position: "absolute",
-              top: 3,
-              left: 3,
-              width: 17,
-              height: 17,
-              borderRadius: "50%",
-              background: "#fff",
-              transform: `translateX(${scOriginal ? 17 : 0}px)`,
-              transition: "transform 0.2s",
-            }}
-          />
-        </button>
-        <span style={{ fontSize: 13, color: T.text2 }}>
+      {/* Toggles */}
+      <div style={{ marginTop: 15, display: "flex", flexDirection: "column", gap: 11 }}>
+        <Toggle on={scOriginal} onColor="#ff7a2f" onToggle={() => setScOriginal((v) => !v)}>
           Prefer SoundCloud{" "}
           <span style={{ fontWeight: 600, color: "#ff7a2f" }}>original file</span> when available
-        </span>
+        </Toggle>
+        <Toggle on={ytFallback} onColor={T.accent} onToggle={() => setYtFallback((v) => !v)}>
+          When SoundCloud can't serve a track, fall back to a{" "}
+          <span style={{ fontWeight: 600, color: T.accent }}>YouTube match</span>
+        </Toggle>
       </div>
 
       {/* Spotify / YouTube source banner */}
@@ -392,6 +367,54 @@ export default function UrlForm({ config, onSubmit }: Props) {
         </div>
       )}
     </form>
+  );
+}
+
+function Toggle({
+  on,
+  onColor,
+  onToggle,
+  children,
+}: {
+  on: boolean;
+  onColor: string;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={on}
+        style={{
+          position: "relative",
+          width: 40,
+          height: 23,
+          borderRadius: 999,
+          border: "none",
+          cursor: "pointer",
+          background: on ? onColor : "#2a2e39",
+          transition: "background 0.2s",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: 3,
+            left: 3,
+            width: 17,
+            height: 17,
+            borderRadius: "50%",
+            background: "#fff",
+            transform: `translateX(${on ? 17 : 0}px)`,
+            transition: "transform 0.2s",
+          }}
+        />
+      </button>
+      <span style={{ fontSize: 13, color: T.text2 }}>{children}</span>
+    </div>
   );
 }
 

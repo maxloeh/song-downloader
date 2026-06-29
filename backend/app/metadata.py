@@ -26,6 +26,25 @@ def _find_sidecar_thumbnail(audio_path: Path) -> Path | None:
     return None
 
 
+def set_basic_tags(audio_path: Path, title: str | None, artist: str | None) -> None:
+    """Force title/artist tags (used for YouTube-sourced fallback files)."""
+    if not audio_path.exists() or not (title or artist):
+        return
+    try:
+        from mutagen import File as MutagenFile
+
+        audio = MutagenFile(audio_path, easy=True)
+        if audio is None:
+            return
+        if title:
+            audio["title"] = title
+        if artist:
+            audio["artist"] = artist
+        audio.save()
+    except Exception as exc:
+        log.warning("could not set tags on %s: %s", audio_path, exc)
+
+
 def verify_and_fix(audio_path: Path) -> dict[str, bool]:
     """Return a small report of which fields are present after fixups."""
     report = {"title": False, "artist": False, "album": False, "cover": False}
