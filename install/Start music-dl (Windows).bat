@@ -1,49 +1,48 @@
 @echo off
-REM Double-click this file to start music-dl. No coding needed.
-REM It installs nothing except (once) Docker Desktop, which it will prompt for.
-
+REM Double-click to START / open music-dl. Resumes instantly after the first time.
 setlocal
 set IMAGE=ghcr.io/maxloeh/song-downloader:latest
 set NAME=music-dl
 set PORT=8080
 set DOWNLOADS=%USERPROFILE%\Music\music-dl
 
-echo ----------------------------------------------
-echo    music-dl launcher
-echo ----------------------------------------------
+echo Starting music-dl...
 
-REM 1. Docker installed?
 where docker >nul 2>nul
 if errorlevel 1 (
-  echo Docker Desktop is required ^(a free app^). Opening the download page...
-  echo Install it, start it, then double-click this launcher again.
+  echo Docker Desktop is required ^(free^). Opening the download page...
+  echo Install it, start it, then double-click this again.
   start "" "https://www.docker.com/products/docker-desktop/"
-  pause
-  exit /b 1
+  pause & exit /b 1
 )
-
-REM 2. Docker running?
 docker info >nul 2>nul
 if errorlevel 1 (
-  echo Please start Docker Desktop, wait for it to finish loading, then run this again.
-  pause
-  exit /b 1
+  echo Please start Docker Desktop, wait for it to load, then run this again.
+  pause & exit /b 1
 )
-
-REM 3. Get the latest version and (re)start the app.
 if not exist "%DOWNLOADS%" mkdir "%DOWNLOADS%"
-echo Downloading the latest music-dl... ^(first time can take a few minutes^)
-docker pull %IMAGE%
-docker rm -f %NAME% >nul 2>nul
-docker run -d --name %NAME% --restart unless-stopped -p %PORT%:8080 -v "%DOWNLOADS%:/downloads" %IMAGE%
 
-REM 4. Open it.
-timeout /t 2 >nul
+docker ps --format "{{.Names}}" | findstr /x "%NAME%" >nul && goto running
+docker ps -a --format "{{.Names}}" | findstr /x "%NAME%" >nul && goto resume
+
+echo First time - downloading music-dl ^(a few minutes^)...
+docker pull %IMAGE%
+docker run -d --name %NAME% --restart no -p %PORT%:8080 -v "%DOWNLOADS%:/downloads" %IMAGE%
+goto open
+
+:resume
+echo Resuming...
+docker start %NAME% >nul
+goto open
+
+:running
+echo Already running.
+
+:open
+timeout /t 1 >nul
 start "" "http://localhost:%PORT%"
 echo.
-echo music-dl is running:  http://localhost:%PORT%
-echo Songs are saved to:   %DOWNLOADS%
-echo First time? The app will ask you to create a username ^& password.
-echo.
-echo You can close this window. To stop the app, quit Docker Desktop.
+echo music-dl is open: http://localhost:%PORT%
+echo Songs are saved to %DOWNLOADS%
+echo Done for now? Double-click "Stop music-dl" to free up your computer.
 pause

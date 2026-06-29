@@ -46,11 +46,24 @@ choose a **username and password** — these are just for you. Done!
   private tracks or original-quality downloads) — there's a "Connect" panel with
   step-by-step instructions.
 
-## Everyday use
-- **Open it again:** just go to http://localhost:8080 (it keeps running in the
-  background as long as Docker Desktop is open).
-- **Update to the latest version:** double-click the launcher again.
-- **Stop it:** quit Docker Desktop.
+## Start & stop (it only runs when you want it to)
+
+Three double-click files do everything — no background hogging:
+
+| Double-click… | What it does |
+|---|---|
+| **Start music-dl** | Starts/opens the app. First time downloads it; after that it **resumes instantly** and opens your browser. |
+| **Stop music-dl** | Stops it so it's not using your computer. Your downloads & login are kept. |
+| **Update music-dl** | Gets the newest version, then opens it. (Only when you want updates.) |
+
+It does **not** auto-start on its own — it runs only after you hit **Start**, and
+stays off after **Stop** (even if you restart your computer).
+
+> To go fully idle you can also quit Docker Desktop; next time just hit **Start**
+> (it'll relaunch Docker for you).
+
+> Mac: each of these files needs the one-time "Open Anyway" step the first time —
+> see the macOS box above.
 
 ## Heads-up
 - Spotify links are matched to audio on YouTube (Spotify itself is download-locked),
