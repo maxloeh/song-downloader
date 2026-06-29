@@ -4,14 +4,34 @@ A private, self-hosted web app to download individual songs or whole playlists
 from **SoundCloud** and **Spotify**, with selectable format/quality and fully
 populated metadata **including embedded cover art**.
 
-One `docker compose up`. Gated by auth. Built to run behind **Tailscale** or a
-reverse proxy — **not** meant to be public.
+Gated by an in-app login. Built to run behind **Tailscale** or a reverse proxy
+— **not** meant to be public.
 
 > ⚖️ **Usage:** For private use among a closed group, for content you are
 > entitled to download (your own uploads, tracks creators made freely
 > downloadable, Creative Commons). Downloading copyrighted tracks without
 > permission can violate SoundCloud's/Spotify's terms and copyright law. Keep
 > this repo private and the instance non-public. You are responsible for your use.
+
+---
+
+## 🚀 Easiest setup (no coding) — for friends
+
+Each person runs their own copy. **No terminal, no editing files.**
+
+1. Install **Docker Desktop** (free): <https://www.docker.com/products/docker-desktop/>
+2. Double-click the launcher for your OS (in [`install/`](install/)):
+   - macOS → **`Start music-dl (macOS).command`**
+   - Windows → **`Start music-dl (Windows).bat`**
+3. Your browser opens to `http://localhost:8080` — **create a username & password**,
+   then paste links. Songs save to `Music/music-dl`.
+
+Connect Spotify / SoundCloud later from the panels inside the app — also no files.
+Full walkthrough: [`install/README.md`](install/README.md).
+
+> Requires the prebuilt image to be published once (GitHub Actions builds it to
+> GHCR on every push to `main`) and the package set to **public** — see
+> [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
 
 ---
 
@@ -26,28 +46,28 @@ The UI is explicit about the Spotify→YouTube audio source.
 
 ---
 
-## Quick start
+## Quick start (build from source / developers)
 
 ```bash
 git clone <your-private-repo> music-dl && cd music-dl
-cp .env.example .env
-# edit .env: set APP_USERNAME/APP_PASSWORD, and ideally Spotify creds
 docker compose up -d --build
 ```
 
-Open `http://<host>:8080`, log in with your Basic Auth credentials, paste links.
+Open `http://<host>:8080` → **create your account on first run** (no `.env`
+needed), then paste links. Downloads land in `./downloads` on the host.
 
-Downloads land in `./downloads` on the host.
+Connect Spotify and SoundCloud from the in-app panels. Everything below in
+`.env` is **optional** — it's only for power users who prefer config files.
 
 ---
 
-## Configuration (`.env`)
+## Configuration (`.env`, all optional)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `APP_USERNAME` / `APP_PASSWORD` | ✅ | Basic Auth credentials gating the whole app. |
-| `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | recommended | Free Spotify Developer app for reliable Spotify metadata. Create at <https://developer.spotify.com/dashboard>. Without them, spotDL uses a limited no-API mode. |
-| `SOUNDCLOUD_AUTH_TOKEN` | optional | `oauth_token` from a logged-in SoundCloud session, for original-quality/private downloads. |
+| Variable | Description |
+|----------|-------------|
+| `APP_USERNAME` / `APP_PASSWORD` | Optional fallback admin login. If unset, the app shows a one-time setup screen to create your account (stored hashed, in the data volume). |
+| `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Optional — easier to set via the in-app **Connect Spotify** panel. Free Spotify Developer app: <https://developer.spotify.com/dashboard>. |
+| `SOUNDCLOUD_AUTH_TOKEN` | Optional — easier via the in-app **Connect SoundCloud** panel. `oauth_token` from a logged-in SoundCloud session. |
 | `MAX_CONCURRENT_DOWNLOADS` | | Worker pool size (default `3`). |
 | `DEFAULT_FORMAT` / `DEFAULT_BITRATE` | | UI defaults (`mp3` / `320k`). |
 | `DOWNLOAD_DIR` | | In-container download path (default `/downloads`). |

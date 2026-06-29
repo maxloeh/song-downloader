@@ -1,5 +1,6 @@
 import type {
   AppConfig,
+  AuthState,
   DownloadOptions,
   FileItem,
   Job,
@@ -24,6 +25,22 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  getAuthState: () => jsonFetch<AuthState>("/api/auth/state"),
+
+  login: (username: string, password: string) =>
+    jsonFetch<{ ok: boolean }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+
+  setup: (username: string, password: string) =>
+    jsonFetch<{ ok: boolean }>("/api/auth/setup", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+
+  logout: () => jsonFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
+
   getConfig: () => jsonFetch<AppConfig>("/api/config"),
 
   getJobs: () => jsonFetch<Job[]>("/api/jobs"),

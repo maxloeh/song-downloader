@@ -6,14 +6,14 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .auth import require_auth
 from .config import get_settings
 from .db import Database
 from .queue import JobQueue
+from .routes import auth as auth_routes
 from .routes import downloads, files, settings as settings_routes
 
 logging.basicConfig(
@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Music Downloader", version="0.1.0", lifespan=lifespan)
 
+app.include_router(auth_routes.router)
 app.include_router(downloads.router)
 app.include_router(files.router)
 app.include_router(settings_routes.router)
@@ -71,8 +72,9 @@ if (FRONTEND_DIR / "assets").is_dir():
 
 
 @app.get("/{full_path:path}")
-def serve_spa(full_path: str, _: str = Depends(require_auth)):
-    """Serve the React SPA (auth-gated), falling back to index.html for routes."""
+def serve_spa(full_path: str):
+    """Serve the React SPA shell (the app gates itself via /api/auth/state;
+    all data endpoints stay protected by the session cookie)."""
     # Never let the SPA catch-all shadow the API.
     if full_path.startswith("api/"):
         return JSONResponse({"detail": "Not found"}, status_code=404)

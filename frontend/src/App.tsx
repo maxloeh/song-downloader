@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, openProgressSocket } from "./api";
+import AuthScreen from "./components/AuthScreen";
 import CompletedSection from "./components/CompletedSection";
 import JobRow from "./components/JobRow";
 import SoundCloudConnect from "./components/SoundCloudConnect";
 import SpotifyConnect from "./components/SpotifyConnect";
 import UrlForm from "./components/UrlForm";
 import { FONT_MONO, T } from "./theme";
-import type { AppConfig, DownloadOptions, Job } from "./types";
+import type { AppConfig, AuthState, DownloadOptions, Job } from "./types";
 
 export default function App() {
+  const [auth, setAuth] = useState<AuthState | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [spotifyConfigured, setSpotifyConfigured] = useState(false);
   const [jobs, setJobs] = useState<Record<string, Job>>({});
@@ -16,13 +18,20 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [filesRefresh, setFilesRefresh] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
+  const authed = !!auth?.authenticated;
 
   const upsertJob = useCallback((job: Job) => {
     setJobs((prev) => ({ ...prev, [job.id]: job }));
     if (job.status === "done") setFilesRefresh((k) => k + 1);
   }, []);
 
+  // Determine auth state first; everything else loads only once authenticated.
   useEffect(() => {
+    api.getAuthState().then(setAuth).catch(() => setAuth({ needs_setup: false, authenticated: false, username: null }));
+  }, []);
+
+  useEffect(() => {
+    if (!authed) return;
     api
       .getConfig()
       .then((c) => {
@@ -35,10 +44,11 @@ export default function App() {
       list.forEach((j) => (map[j.id] = j));
       setJobs(map);
     });
-  }, []);
+  }, [authed]);
 
   // Live progress WebSocket with auto-reconnect.
   useEffect(() => {
+    if (!authed) return;
     let closed = false;
     let retry: ReturnType<typeof setTimeout>;
 
@@ -83,7 +93,20 @@ export default function App() {
       clearTimeout(retry);
       socketRef.current?.close();
     };
-  }, [upsertJob]);
+  }, [authed, upsertJob]);
+
+  const handleAuthed = useCallback(() => {
+    api.getAuthState().then(setAuth).catch(() => {});
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    api.logout().finally(() => {
+      socketRef.current?.close();
+      setJobs({});
+      setConfig(null);
+      setAuth({ needs_setup: false, authenticated: false, username: null });
+    });
+  }, []);
 
   const handleSubmit = useCallback(
     async (urls: string[], options: DownloadOptions) => {
@@ -149,6 +172,17 @@ export default function App() {
 
   const countsText = `${counts.queued} queued · ${counts.active} active · ${counts.done} done · ${counts.failed} failed`;
 
+  // ── Auth gate ──────────────────────────────────────────────────────────────
+  if (auth === null) {
+    return null; // brief: deciding setup vs login vs app
+  }
+  if (auth.needs_setup) {
+    return <AuthScreen mode="setup" onAuthed={handleAuthed} />;
+  }
+  if (!auth.authenticated) {
+    return <AuthScreen mode="login" onAuthed={handleAuthed} />;
+  }
+
   return (
     <div style={{ position: "relative", zIndex: 1, padding: "30px 14px 90px" }}>
       <div style={{ maxWidth: 880, margin: "0 auto" }}>
@@ -171,32 +205,51 @@ export default function App() {
               Paste one or more URLs — one per line. We detect the source automatically.
             </p>
           </div>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              fontFamily: FONT_MONO,
-              fontSize: 11,
-              color: connected ? "#2fe0a6" : T.faint2,
-              background: connected ? "rgba(47,224,166,0.12)" : "rgba(146,152,166,0.1)",
-              border: `1px solid ${connected ? "rgba(47,224,166,0.2)" : "rgba(146,152,166,0.18)"}`,
-              borderRadius: 999,
-              padding: "5px 11px",
-            }}
-            title={connected ? "Live updates connected" : "Reconnecting…"}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: connected ? "#2fe0a6" : T.faint2,
-                boxShadow: connected ? "0 0 8px #2fe0a6" : "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                fontFamily: FONT_MONO,
+                fontSize: 11,
+                color: connected ? "#2fe0a6" : T.faint2,
+                background: connected ? "rgba(47,224,166,0.12)" : "rgba(146,152,166,0.1)",
+                border: `1px solid ${connected ? "rgba(47,224,166,0.2)" : "rgba(146,152,166,0.18)"}`,
+                borderRadius: 999,
+                padding: "5px 11px",
               }}
-            />
-            {connected ? "live" : "offline"}
-          </span>
+              title={connected ? "Live updates connected" : "Reconnecting…"}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: connected ? "#2fe0a6" : T.faint2,
+                  boxShadow: connected ? "0 0 8px #2fe0a6" : "none",
+                }}
+              />
+              {connected ? "live" : "offline"}
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title={auth.username ? `Signed in as ${auth.username}` : "Log out"}
+              style={{
+                fontFamily: FONT_MONO,
+                fontSize: 11,
+                color: T.faint2,
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${T.borderStrong}`,
+                borderRadius: 999,
+                padding: "5px 11px",
+                cursor: "pointer",
+              }}
+            >
+              log out
+            </button>
+          </div>
         </div>
 
         {error && (

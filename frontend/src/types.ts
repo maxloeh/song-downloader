@@ -50,6 +50,12 @@ export interface SpotifyStatus {
   source: "app" | "env" | null;
 }
 
+export interface AuthState {
+  needs_setup: boolean;
+  authenticated: boolean;
+  username: string | null;
+}
+
 export interface FileItem {
   path: string;
   name: string;
