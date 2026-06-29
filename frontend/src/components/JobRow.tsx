@@ -1,74 +1,253 @@
 import { api } from "../api";
+import { FONT_MONO, SOURCE, STATUS, T } from "../theme";
 import type { Job } from "../types";
 
-const STATUS_STYLES: Record<Job["status"], string> = {
-  queued: "bg-slate-500/15 text-slate-300",
-  downloading: "bg-sky-500/15 text-sky-300",
-  converting: "bg-violet-500/15 text-violet-300",
-  done: "bg-emerald-500/15 text-emerald-300",
-  failed: "bg-rose-500/15 text-rose-300",
-};
-
-function SourceBadge({ source }: { source: Job["source"] }) {
-  const isSpotify = source === "spotify";
-  return (
-    <span
-      className={`badge ${isSpotify ? "bg-spotify/15 text-spotify" : "bg-soundcloud/15 text-soundcloud"}`}
-    >
-      {isSpotify ? "Spotify" : "SoundCloud"}
-    </span>
-  );
+interface Props {
+  job: Job;
+  onRetry: (job: Job) => void;
 }
 
-export default function JobRow({ job }: { job: Job }) {
-  const active = job.status === "downloading" || job.status === "converting";
+export default function JobRow({ job, onRetry }: Props) {
+  const s = SOURCE[job.source] ?? SOURCE.unknown;
+  const st = STATUS[job.status] ?? STATUS.queued;
+  const isDownloading = job.status === "downloading";
+  const isConverting = job.status === "converting";
+  const showBar = isDownloading || isConverting;
+  const barColor = isConverting ? STATUS.converting.color : STATUS.downloading.color;
+  const barPct = isConverting ? 100 : Math.max(5, job.progress);
+  const pctLabel = isConverting ? "processing…" : `${Math.round(job.progress)}%`;
+  const active = isDownloading || isConverting;
   const title = job.title || job.url;
 
+  const rowStyle: React.CSSProperties = {
+    background: T.panelAlt,
+    border: active ? "1px solid rgba(0,224,198,0.28)" : `1px solid ${T.border}`,
+    borderRadius: 12,
+    padding: "14px 15px",
+    boxShadow: active
+      ? "0 0 0 1px rgba(0,224,198,0.12), 0 6px 26px -10px rgba(0,224,198,0.5)"
+      : "none",
+  };
+
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-white/5 bg-ink-800/50 p-3.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <SourceBadge source={job.source} />
-            <span className={`badge ${STATUS_STYLES[job.status]}`}>{job.status}</span>
+    <div style={rowStyle}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <span
+          style={{
+            flexShrink: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 34,
+            height: 34,
+            borderRadius: 9,
+            background: s.bg,
+            color: s.color,
+            fontFamily: FONT_MONO,
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          {s.initials}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                color: T.text,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: "100%",
+              }}
+              title={title}
+            >
+              {title}
+            </span>
+            <span
+              style={{
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontFamily: FONT_MONO,
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: "0.04em",
+                color: st.color,
+                background: st.bg,
+                borderRadius: 999,
+                padding: "3px 9px",
+              }}
+            >
+              {isDownloading && (
+                <span style={{ display: "inline-flex", alignItems: "flex-end", gap: 1.5, height: 9 }}>
+                  {[0, 0.15, 0.3].map((delay) => (
+                    <i
+                      key={delay}
+                      style={{
+                        width: 2,
+                        height: "100%",
+                        background: st.color,
+                        transformOrigin: "bottom",
+                        animation: `eq 0.8s ease-in-out infinite ${delay}s`,
+                      }}
+                    />
+                  ))}
+                </span>
+              )}
+              {job.status === "queued" && (
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: "50%",
+                    background: st.color,
+                    animation: "blink 1.4s ease-in-out infinite",
+                  }}
+                />
+              )}
+              {st.label}
+            </span>
           </div>
-          <p className="mt-1.5 truncate text-sm font-medium text-slate-100" title={title}>
-            {title}
-          </p>
           {job.playlist && (
-            <p className="truncate text-xs text-slate-400">in “{job.playlist}”</p>
+            <div
+              style={{
+                marginTop: 3,
+                fontSize: 12,
+                color: T.faint2,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              ↳ in “{job.playlist}”
+            </div>
           )}
         </div>
 
         {job.status === "done" && job.output_path && (
-          <a href={api.fileUrl(job.output_path)} className="btn-ghost shrink-0 px-3 py-1.5 text-xs">
+          <a
+            href={api.fileUrl(job.output_path)}
+            style={{
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              height: 30,
+              padding: "0 12px",
+              border: `1px solid ${T.borderStrong}`,
+              borderRadius: 8,
+              background: "rgba(255,255,255,0.04)",
+              color: T.text2,
+              fontSize: 12,
+              textDecoration: "none",
+            }}
+          >
             ↓ Save
           </a>
         )}
+        {job.status === "failed" && (
+          <button
+            type="button"
+            onClick={() => onRetry(job)}
+            style={{
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              height: 30,
+              padding: "0 12px",
+              border: "1px solid rgba(255,93,115,0.3)",
+              borderRadius: 8,
+              background: "rgba(255,93,115,0.08)",
+              color: "#ff5d73",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            ↻ Retry
+          </button>
+        )}
       </div>
 
-      {active && (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+      {showBar && (
+        <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>
           <div
-            className={`h-full rounded-full bg-accent transition-all duration-300 ${
-              job.status === "converting" ? "shimmer" : ""
-            }`}
-            style={{ width: `${Math.max(4, job.progress)}%` }}
-          />
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.07)",
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                borderRadius: 999,
+                width: `${barPct}%`,
+                background: barColor,
+                boxShadow: `0 0 10px -1px ${barColor}`,
+                transition: "width 0.4s ease",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {isConverting && (
+                <span
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background:
+                      "linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)",
+                    animation: "shim 1.3s linear infinite",
+                  }}
+                />
+              )}
+            </div>
+          </div>
+          <span
+            style={{
+              flexShrink: 0,
+              fontFamily: FONT_MONO,
+              fontSize: 11,
+              color: T.muted,
+              minWidth: 64,
+              textAlign: "right",
+            }}
+          >
+            {pctLabel}
+          </span>
         </div>
       )}
 
       {job.source === "spotify" && job.status === "done" && (
-        <p className="text-[11px] text-slate-500">
-          Audio matched from YouTube{job.audio_source ? ` (${job.audio_source})` : ""} — bitrate
-          is capped by that source.
-        </p>
+        <div style={{ marginTop: 9, fontFamily: FONT_MONO, fontSize: 10.5, color: T.faint2 }}>
+          ↳ audio matched from YouTube{job.audio_source ? ` (${job.audio_source})` : ""} · bitrate
+          capped by source
+        </div>
       )}
 
       {job.status === "failed" && job.error && (
-        <p className="rounded-lg bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-300">
-          {job.error}
-        </p>
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            gap: 8,
+            alignItems: "flex-start",
+            background: "rgba(255,93,115,0.08)",
+            border: "1px solid rgba(255,93,115,0.2)",
+            borderRadius: 8,
+            padding: "9px 11px",
+          }}
+        >
+          <span style={{ color: "#ff5d73", flexShrink: 0, fontSize: 13, lineHeight: 1.3 }}>⚠</span>
+          <span style={{ fontSize: 12, lineHeight: 1.5, color: "#e3a3ac" }}>{job.error}</span>
+        </div>
       )}
     </div>
   );

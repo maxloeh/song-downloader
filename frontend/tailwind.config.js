@@ -4,21 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: {
-          950: "#0a0b10",
-          900: "#11131c",
-          800: "#171a26",
-          700: "#222637",
-        },
+        bg: "#08090d",
+        panel: "#13151c",
+        "panel-alt": "#11131a",
+        inset: "#0d0f14",
+        raised: "#1b1e27",
         accent: {
-          DEFAULT: "#ff5722",
-          soft: "#ff8a65",
+          DEFAULT: "#00e0c6",
         },
-        spotify: "#1db954",
-        soundcloud: "#ff5500",
+        soundcloud: "#ff7a2f",
+        spotify: "#1ed760",
       },
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Space Grotesk", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
     },

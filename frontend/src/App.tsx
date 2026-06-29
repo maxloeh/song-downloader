@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, openProgressSocket } from "./api";
-import FileBrowser from "./components/FileBrowser";
+import CompletedSection from "./components/CompletedSection";
 import JobRow from "./components/JobRow";
 import UrlForm from "./components/UrlForm";
+import { FONT_MONO, T } from "./theme";
 import type { AppConfig, DownloadOptions, Job } from "./types";
 
 export default function App() {
@@ -18,7 +19,6 @@ export default function App() {
     if (job.status === "done") setFilesRefresh((k) => k + 1);
   }, []);
 
-  // Bootstrap config + initial jobs.
   useEffect(() => {
     api.getConfig().then(setConfig).catch((e) => setError(String(e)));
     api.getJobs().then((list) => {
@@ -83,86 +83,155 @@ export default function App() {
     [upsertJob],
   );
 
+  const handleRetry = useCallback(
+    (job: Job) => handleSubmit([job.url], job.options),
+    [handleSubmit],
+  );
+
   const sortedJobs = useMemo(
     () => Object.values(jobs).sort((a, b) => b.created_at - a.created_at),
     [jobs],
   );
-  const active = sortedJobs.filter((j) => j.status !== "done");
+  const queueJobs = sortedJobs.filter((j) => j.status !== "done");
+
   const counts = useMemo(() => {
-    const c = { queued: 0, downloading: 0, done: 0, failed: 0 };
+    const c = { queued: 0, active: 0, done: 0, failed: 0 };
     sortedJobs.forEach((j) => {
       if (j.status === "done") c.done++;
       else if (j.status === "failed") c.failed++;
       else if (j.status === "queued") c.queued++;
-      else c.downloading++;
+      else c.active++;
     });
     return c;
   }, [sortedJobs]);
 
+  const countsText = `${counts.queued} queued · ${counts.active} active · ${counts.done} done · ${counts.failed} failed`;
+
   return (
-    <div className="mx-auto min-h-full max-w-3xl px-4 py-8 sm:py-12">
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">
-            <span className="text-accent">♪</span> Music Downloader
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            SoundCloud &amp; Spotify → tagged files with cover art.
-          </p>
-        </div>
-        <span
-          className={`badge ${connected ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-500/15 text-slate-400"}`}
-          title={connected ? "Live updates connected" : "Reconnecting…"}
+    <div style={{ position: "relative", zIndex: 1, padding: "30px 14px 90px" }}>
+      <div style={{ maxWidth: 880, margin: "0 auto" }}>
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            marginBottom: 22,
+            flexWrap: "wrap",
+          }}
         >
+          <div>
+            <h2 style={{ margin: 0, fontSize: 23, fontWeight: 600, letterSpacing: "-0.02em" }}>
+              Drop your links
+            </h2>
+            <p style={{ margin: "5px 0 0", fontSize: 13, color: T.muted }}>
+              Paste one or more URLs — one per line. We detect the source automatically.
+            </p>
+          </div>
           <span
-            className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-emerald-400" : "bg-slate-500"}`}
-          />
-          {connected ? "live" : "offline"}
-        </span>
-      </header>
-
-      {error && (
-        <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-          {error}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              fontFamily: FONT_MONO,
+              fontSize: 11,
+              color: connected ? "#2fe0a6" : T.faint2,
+              background: connected ? "rgba(47,224,166,0.12)" : "rgba(146,152,166,0.1)",
+              border: `1px solid ${connected ? "rgba(47,224,166,0.2)" : "rgba(146,152,166,0.18)"}`,
+              borderRadius: 999,
+              padding: "5px 11px",
+            }}
+            title={connected ? "Live updates connected" : "Reconnecting…"}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: connected ? "#2fe0a6" : T.faint2,
+                boxShadow: connected ? "0 0 8px #2fe0a6" : "none",
+              }}
+            />
+            {connected ? "live" : "offline"}
+          </span>
         </div>
-      )}
 
-      {config ? (
-        <div className="space-y-6">
-          <UrlForm config={config} onSubmit={handleSubmit} />
+        {error && (
+          <div
+            style={{
+              marginBottom: 16,
+              borderRadius: 9,
+              border: "1px solid rgba(255,93,115,0.2)",
+              background: "rgba(255,93,115,0.08)",
+              padding: "10px 13px",
+              fontSize: 13,
+              color: "#e3a3ac",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-          <section className="card p-5 sm:p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-                Queue
-              </h2>
-              <p className="text-xs text-slate-500">
-                {counts.queued} queued · {counts.downloading} active · {counts.done} done ·{" "}
-                {counts.failed} failed
-              </p>
-            </div>
-            {active.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                Nothing in progress. Paste a link above to start.
-              </p>
-            ) : (
-              <div className="space-y-2.5">
-                {active.map((job) => (
-                  <JobRow key={job.id} job={job} />
-                ))}
+        {config ? (
+          <>
+            <UrlForm config={config} onSubmit={handleSubmit} />
+
+            {queueJobs.length > 0 && (
+              <div style={{ marginTop: 26 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 13,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontFamily: FONT_MONO,
+                      fontSize: 11,
+                      letterSpacing: "0.16em",
+                      textTransform: "uppercase",
+                      color: T.faint,
+                    }}
+                  >
+                    Queue
+                  </h3>
+                  <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.faint2 }}>
+                    {countsText}
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                  {queueJobs.map((job) => (
+                    <JobRow key={job.id} job={job} onRetry={handleRetry} />
+                  ))}
+                </div>
               </div>
             )}
-          </section>
 
-          <FileBrowser refreshKey={filesRefresh} />
-        </div>
-      ) : (
-        !error && <p className="text-sm text-slate-500">Loading…</p>
-      )}
+            <CompletedSection jobs={sortedJobs} refreshKey={filesRefresh} />
+          </>
+        ) : (
+          !error && <p style={{ fontSize: 13, color: T.faint2 }}>Loading…</p>
+        )}
 
-      <footer className="mt-12 text-center text-xs text-slate-600">
-        Private self-hosted instance · for content you're entitled to download.
-      </footer>
+        <footer
+          style={{
+            marginTop: 48,
+            textAlign: "center",
+            fontFamily: FONT_MONO,
+            fontSize: 10,
+            color: T.faint4,
+            letterSpacing: "0.04em",
+          }}
+        >
+          private instance · for content you're entitled to download
+        </footer>
+      </div>
     </div>
   );
 }

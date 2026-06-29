@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{background:#08090d;}
+  ::selection{background:rgba(0,224,198,0.3);}
+  ::-webkit-scrollbar{width:11px;height:11px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:8px;border:3px solid #08090d;}
+  textarea,input,select,button{font-family:inherit;}
+  select{appearance:none;-webkit-appearance:none;}
+  @keyframes eq{0%,100%{transform:scaleY(0.3)}50%{transform:scaleY(1)}}
+  @keyframes wave{0%,100%{transform:scaleY(0.25)}50%{transform:scaleY(1)}}
+  @keyframes shim{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+  @keyframes glowpulse{0%,100%{opacity:0.5}50%{opacity:0.95}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.25}}
+</style>
+</helmet>
+
+<div ref="{{setRoot}}" style="position:relative;min-height:100%;width:100%;background:#08090d;color:#e9ebf2;font-family:'Space Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;">
+
+  <div style="position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:52px 52px;-webkit-mask-image:radial-gradient(130% 90% at 50% -10%,#000 25%,transparent 78%);mask-image:radial-gradient(130% 90% at 50% -10%,#000 25%,transparent 78%);"></div>
+  <div style="position:fixed;top:-180px;left:50%;transform:translateX(-50%);width:820px;height:480px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent,#00e0c6) 20%,transparent),transparent 62%);filter:blur(50px);pointer-events:none;z-index:0;animation:glowpulse 7s ease-in-out infinite;"></div>
+
+  <!-- ===== PROTOTYPE TOP BAR ===== -->
+  <div style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:11px 20px;background:rgba(8,9,13,0.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,0.07);">
+    <div style="display:flex;align-items:center;gap:9px;">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--accent,#00e0c6);color:#08090d;font-weight:700;font-size:13px;box-shadow:0 0 18px -2px color-mix(in srgb,var(--accent,#00e0c6) 75%,transparent);">▸</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:14px;letter-spacing:-0.01em;">music<span style="color:var(--accent,#00e0c6);">-dl</span></span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.18em;color:#5f6573;border:1px solid rgba(255,255,255,0.12);border-radius:4px;padding:2px 5px;margin-left:4px;">PROTOTYPE</span>
+    </div>
+
+    <nav style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+      <sc-for list="{{navItems}}" as="n" hint-placeholder-count="6">
+        <button onClick="{{n.go}}" style="{{n.style}}">{{n.label}}</button>
+      </sc-for>
+    </nav>
+
+    <div style="display:flex;align-items:center;gap:14px;margin-left:auto;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:7px;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.14em;color:#5f6573;">ACCENT</span>
+        <div style="display:flex;gap:5px;">
+          <button onClick="{{accentToA}}" title="Direction A — Magenta" style="{{swatchA}}"></button>
+          <button onClick="{{accentToB}}" title="Direction B — Cyan" style="{{swatchB}}"></button>
+        </div>
+      </div>
+      <div style="display:flex;background:#13151c;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:3px;">
+        <button onClick="{{deviceDesktop}}" style="{{deskBtn}}">Desktop</button>
+        <button onClick="{{deviceMobile}}" style="{{mobBtn}}">Mobile</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STAGE ===== -->
+  <div style="position:relative;z-index:1;display:flex;justify-content:center;padding:0 14px;">
+    <div ref="{{setStage}}" style="width:100%;max-width:1180px;transition:max-width 0.25s ease;">
+
+      <!-- ========== LOGIN ========== -->
+      <sc-if value="{{isLogin}}" hint-placeholder-val="{{true}}">
+        <div data-screen-label="Login" style="min-height:78vh;display:flex;align-items:center;justify-content:center;padding:40px 0;">
+          <div style="width:100%;max-width:380px;">
+            <div style="display:flex;align-items:flex-end;justify-content:center;gap:3px;height:42px;margin-bottom:26px;">
+              <sc-for list="{{waveBars}}" as="w" hint-placeholder-count="13">
+                <i style="{{w.style}}"></i>
+              </sc-for>
+            </div>
+            <div style="text-align:center;margin-bottom:26px;">
+              <h1 style="margin:0;font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:600;letter-spacing:-0.02em;">music<span style="color:var(--accent,#00e0c6);">-dl</span></h1>
+              <p style="margin:8px 0 0;font-size:13px;color:#9298a6;line-height:1.5;">Private SoundCloud &amp; Spotify downloader.<br>Sign in to continue.</p>
+            </div>
+            <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:22px;box-shadow:0 24px 60px -28px rgba(0,0,0,0.8);">
+              <label style="display:block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#7e8493;margin-bottom:7px;">Username</label>
+              <input type="text" value="dj_max" style="width:100%;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#e9ebf2;padding:12px 14px;font-size:14px;outline:none;margin-bottom:16px;" style-focus="border-color:var(--accent,#00e0c6);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#00e0c6) 18%,transparent);">
+              <label style="display:block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#7e8493;margin-bottom:7px;">Password</label>
+              <input type="password" value="passwordpassword" style="width:100%;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#e9ebf2;padding:12px 14px;font-size:14px;outline:none;margin-bottom:20px;" style-focus="border-color:var(--accent,#00e0c6);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#00e0c6) 18%,transparent);">
+              <button onClick="{{signIn}}" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;border:none;border-radius:9px;background:var(--accent,#00e0c6);color:#08090d;font-weight:600;font-size:14px;cursor:pointer;box-shadow:0 8px 28px -8px color-mix(in srgb,var(--accent,#00e0c6) 75%,transparent);" style-hover="filter:brightness(1.08);">Sign in →</button>
+            </div>
+            <p style="text-align:center;margin:18px 0 0;font-family:'JetBrains Mono',monospace;font-size:10px;color:#4f5562;letter-spacing:0.04em;">basic auth · private instance · tailscale only</p>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== EMPTY ========== -->
+      <sc-if value="{{isEmpty}}" hint-placeholder-val="{{true}}">
+        <div data-screen-label="Empty state" style="padding:30px 6px 90px;max-width:880px;margin:0 auto;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
+            <div>
+              <h2 style="margin:0;font-size:23px;font-weight:600;letter-spacing:-0.02em;">Drop your links</h2>
+              <p style="margin:5px 0 0;font-size:13px;color:#9298a6;">Paste one or more URLs — one per line. We detect the source automatically.</p>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#2fe0a6;background:rgba(47,224,166,0.12);border:1px solid rgba(47,224,166,0.2);border-radius:999px;padding:5px 11px;"><span style="width:6px;height:6px;border-radius:50%;background:#2fe0a6;box-shadow:0 0 8px #2fe0a6;"></span>live</span>
+          </div>
+
+          <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px;">
+            <div style="position:relative;border:1px dashed rgba(255,255,255,0.14);border-radius:11px;background:#0d0f14;padding:40px 20px;text-align:center;">
+              <div style="display:flex;align-items:flex-end;justify-content:center;gap:3px;height:30px;margin-bottom:16px;opacity:0.5;">
+                <sc-for list="{{waveBars}}" as="w" hint-placeholder-count="13">
+                  <i style="{{w.style}}"></i>
+                </sc-for>
+              </div>
+              <p style="margin:0 0 4px;font-size:15px;color:#c3c8d4;font-weight:500;">Nothing queued yet</p>
+              <p style="margin:0 0 18px;font-size:13px;color:#6a6f7c;font-family:'JetBrains Mono',monospace;">soundcloud.com/… &nbsp;·&nbsp; open.spotify.com/…</p>
+              <button onClick="{{demoFill}}" style="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border:1px solid rgba(255,255,255,0.14);border-radius:9px;background:#1b1e27;color:#e9ebf2;font-weight:500;font-size:13px;cursor:pointer;" style-hover="border-color:var(--accent,#00e0c6);">+ Paste example links</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== MAIN ========== -->
+      <sc-if value="{{isMain}}" hint-placeholder-val="{{true}}">
+        <div data-screen-label="Main" style="padding:30px 6px 90px;max-width:880px;margin:0 auto;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap;">
+            <div>
+              <h2 style="margin:0;font-size:23px;font-weight:600;letter-spacing:-0.02em;">Drop your links</h2>
+              <p style="margin:5px 0 0;font-size:13px;color:#9298a6;">Paste one or more URLs — one per line. We detect the source automatically.</p>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#2fe0a6;background:rgba(47,224,166,0.12);border:1px solid rgba(47,224,166,0.2);border-radius:999px;padding:5px 11px;"><span style="width:6px;height:6px;border-radius:50%;background:#2fe0a6;box-shadow:0 0 8px #2fe0a6;"></span>live</span>
+          </div>
+
+          <!-- paste + options -->
+          <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px;box-shadow:0 20px 50px -30px rgba(0,0,0,0.7);">
+            <textarea value="{{text}}" onInput="{{onText}}" rows="4" spellcheck="false" placeholder="https://soundcloud.com/artist/track&#10;https://open.spotify.com/playlist/…" style="width:100%;resize:vertical;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:11px;color:#e9ebf2;padding:14px 15px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;outline:none;" style-focus="border-color:var(--accent,#00e0c6);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#00e0c6) 16%,transparent);"></textarea>
+
+            <!-- detected chips -->
+            <sc-if value="{{hasDetected}}" hint-placeholder-val="{{true}}">
+              <div style="margin-top:14px;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#7e8493;margin-bottom:9px;">Detected · {{detectedCount}}</div>
+                <div style="display:flex;flex-direction:column;gap:7px;">
+                  <sc-for list="{{detected}}" as="d" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:11px;background:#0d0f14;border:1px solid rgba(255,255,255,0.07);border-radius:9px;padding:9px 12px;">
+                      <span style="display:inline-flex;align-items:center;gap:6px;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:{{d.sourceColor}};background:{{d.sourceBg}};border-radius:999px;padding:4px 9px;"><span style="width:6px;height:6px;border-radius:50%;background:{{d.sourceColor}};"></span>{{d.sourceName}}</span>
+                      <span style="flex:1;min-width:0;font-family:'JetBrains Mono',monospace;font-size:12px;color:#c3c8d4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{d.name}}</span>
+                      <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.06em;color:#6a6f7c;text-transform:uppercase;">{{d.kindLabel}}</span>
+                      <sc-if value="{{d.isSpotify}}" hint-placeholder-val="{{true}}">
+                        <div style="position:relative;flex-shrink:0;">
+                          <button onClick="{{d.toggleTip}}" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid rgba(30,215,96,0.4);background:rgba(30,215,96,0.1);color:#1ed760;font-size:11px;font-style:italic;font-family:Georgia,serif;cursor:pointer;line-height:1;">i</button>
+                          <sc-if value="{{d.tipOpen}}" hint-placeholder-val="{{true}}">
+                            <div style="position:absolute;bottom:150%;right:-4px;width:236px;z-index:30;background:#1b1e27;border:1px solid rgba(255,255,255,0.13);border-radius:11px;padding:11px 13px;font-family:'Space Grotesk',sans-serif;font-size:12px;line-height:1.55;color:#c3c8d4;box-shadow:0 16px 40px -10px rgba(0,0,0,0.7);">
+                              <span style="display:block;color:#1ed760;font-weight:600;margin-bottom:4px;font-size:11px;letter-spacing:0.02em;">Audio matched from YouTube</span>
+                              Spotify can't be downloaded directly. We pull metadata + cover from Spotify and the closest audio from YouTube — so bitrate is capped (~128–256k).
+                            </div>
+                          </sc-if>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- options row -->
+            <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;align-items:end;">
+              <label style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#7e8493;">Format</span>
+                <div style="position:relative;">
+                  <select value="{{format}}" onChange="{{onFormat}}" style="width:100%;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#e9ebf2;padding:11px 32px 11px 13px;font-size:13px;font-weight:500;outline:none;cursor:pointer;" style-focus="border-color:var(--accent,#00e0c6);">
+                    <sc-for list="{{formatOpts}}" as="o" hint-placeholder-count="6"><option value="{{o.value}}">{{o.label}}</option></sc-for>
+                  </select>
+                  <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#7e8493;font-size:10px;">▾</span>
+                </div>
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#7e8493;">Quality</span>
+                <div style="position:relative;">
+                  <select value="{{bitrate}}" onChange="{{onBitrate}}" style="width:100%;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#e9ebf2;padding:11px 32px 11px 13px;font-size:13px;font-weight:500;outline:none;cursor:pointer;" style-focus="border-color:var(--accent,#00e0c6);">
+                    <sc-for list="{{bitrateOpts}}" as="o" hint-placeholder-count="5"><option value="{{o.value}}">{{o.label}}</option></sc-for>
+                  </select>
+                  <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#7e8493;font-size:10px;">▾</span>
+                </div>
+              </label>
+              <button onClick="{{doDownload}}" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 20px;border:none;border-radius:9px;background:var(--accent,#00e0c6);color:#08090d;font-weight:600;font-size:14px;cursor:pointer;box-shadow:0 8px 26px -8px color-mix(in srgb,var(--accent,#00e0c6) 75%,transparent);" style-hover="filter:brightness(1.08);">↓ {{downloadLabel}}</button>
+            </div>
+
+            <!-- toggle + note -->
+            <div style="margin-top:15px;display:flex;align-items:center;gap:10px;">
+              <button onClick="{{toggleOriginal}}" style="{{toggleTrack}}"><span style="{{toggleKnob}}"></span></button>
+              <span style="font-size:13px;color:#c3c8d4;">Prefer SoundCloud <span style="font-weight:600;color:#ff7a2f;">original file</span> when available</span>
+            </div>
+            <sc-if value="{{hasSpotifyDetected}}" hint-placeholder-val="{{true}}">
+              <div style="margin-top:13px;display:flex;gap:9px;align-items:flex-start;background:rgba(30,215,96,0.07);border:1px solid rgba(30,215,96,0.18);border-radius:9px;padding:10px 12px;">
+                <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(30,215,96,0.18);color:#1ed760;font-size:10px;font-style:italic;font-family:Georgia,serif;margin-top:1px;">i</span>
+                <span style="font-size:12px;line-height:1.5;color:#9aa6a0;">Spotify links are matched to audio on <span style="color:#1ed760;">YouTube</span> — metadata &amp; cover come from Spotify, bitrate is capped (~128–256k). FLAC won't be true lossless.</span>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- queue preview -->
+          <sc-if value="{{hasJobs}}" hint-placeholder-val="{{true}}">
+            <div style="margin-top:26px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:13px;flex-wrap:wrap;">
+                <h3 style="margin:0;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#7e8493;">Queue</h3>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6a6f7c;">{{countsText}}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:9px;">
+                <sc-for list="{{jobs}}" as="job" hint-placeholder-count="5">
+                  <div style="{{job.rowStyle}}">
+                    <div style="display:flex;align-items:flex-start;gap:12px;">
+                      <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:{{job.sourceBg}};color:{{job.sourceColor}};font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;">{{job.sourceInitials}}</span>
+                      <div style="flex:1;min-width:0;">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                          <span style="font-size:14px;font-weight:500;color:#e9ebf2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">{{job.title}}</span>
+                          <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.04em;color:{{job.statusColor}};background:{{job.statusBg}};border-radius:999px;padding:3px 9px;">
+                            <sc-if value="{{job.isDownloading}}" hint-placeholder-val="{{true}}"><span style="display:inline-flex;align-items:end;gap:1.5px;height:9px;"><i style="width:2px;height:100%;background:{{job.statusColor}};transform-origin:bottom;animation:eq 0.8s ease-in-out infinite;"></i><i style="width:2px;height:100%;background:{{job.statusColor}};transform-origin:bottom;animation:eq 0.8s ease-in-out infinite 0.15s;"></i><i style="width:2px;height:100%;background:{{job.statusColor}};transform-origin:bottom;animation:eq 0.8s ease-in-out infinite 0.3s;"></i></span></sc-if>
+                            <sc-if value="{{job.isQueued}}" hint-placeholder-val="{{true}}"><span style="width:5px;height:5px;border-radius:50%;background:{{job.statusColor}};animation:blink 1.4s ease-in-out infinite;"></span></sc-if>
+                            {{job.statusLabel}}
+                          </span>
+                        </div>
+                        <sc-if value="{{job.hasPlaylist}}" hint-placeholder-val="{{true}}">
+                          <div style="margin-top:3px;font-size:12px;color:#6a6f7c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">↳ in “{{job.playlist}}”</div>
+                        </sc-if>
+                      </div>
+                      <sc-if value="{{job.isDone}}" hint-placeholder-val="{{true}}">
+                        <a href="#" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border:1px solid rgba(255,255,255,0.13);border-radius:8px;background:rgba(255,255,255,0.04);color:#c3c8d4;font-size:12px;text-decoration:none;" style-hover="background:rgba(255,255,255,0.09);">↓ Save</a>
+                      </sc-if>
+                      <sc-if value="{{job.isFailed}}" hint-placeholder-val="{{true}}">
+                        <button onClick="{{job.retry}}" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border:1px solid rgba(255,93,115,0.3);border-radius:8px;background:rgba(255,93,115,0.08);color:#ff5d73;font-size:12px;cursor:pointer;">↻ Retry</button>
+                      </sc-if>
+                    </div>
+                    <sc-if value="{{job.showBar}}" hint-placeholder-val="{{true}}">
+                      <div style="margin-top:11px;display:flex;align-items:center;gap:10px;">
+                        <div style="flex:1;height:4px;border-radius:999px;background:rgba(255,255,255,0.07);overflow:hidden;position:relative;">
+                          <div style="height:100%;border-radius:999px;width:{{job.barPct}};background:{{job.barColor}};box-shadow:0 0 10px -1px {{job.barColor}};transition:width 0.4s ease;position:relative;overflow:hidden;">
+                            <sc-if value="{{job.shimmer}}" hint-placeholder-val="{{true}}"><span style="position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);animation:shim 1.3s linear infinite;"></span></sc-if>
+                          </div>
+                        </div>
+                        <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#9298a6;min-width:64px;text-align:right;">{{job.pctLabel}}</span>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{job.ytNote}}" hint-placeholder-val="{{true}}">
+                      <div style="margin-top:9px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6a6f7c;">↳ audio matched from YouTube · bitrate capped by source</div>
+                    </sc-if>
+                    <sc-if value="{{job.isFailed}}" hint-placeholder-val="{{true}}">
+                      <div style="margin-top:10px;display:flex;gap:8px;align-items:flex-start;background:rgba(255,93,115,0.08);border:1px solid rgba(255,93,115,0.2);border-radius:8px;padding:9px 11px;">
+                        <span style="color:#ff5d73;flex-shrink:0;font-size:13px;line-height:1.3;">⚠</span>
+                        <span style="font-size:12px;line-height:1.5;color:#e3a3ac;">{{job.error}}</span>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- completed preview -->
+          <sc-if value="{{hasCompleted}}" hint-placeholder-val="{{true}}">
+            <div style="margin-top:30px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:13px;flex-wrap:wrap;">
+                <h3 style="margin:0;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#7e8493;">Completed</h3>
+                <button onClick="{{zipAll}}" style="display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 13px;border:1px solid rgba(255,255,255,0.13);border-radius:8px;background:rgba(255,255,255,0.04);color:#c3c8d4;font-size:12px;cursor:pointer;" style-hover="border-color:var(--accent,#00e0c6);">⤓ Download all (.zip)</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <sc-for list="{{completedGroups}}" as="g" hint-placeholder-count="3">
+                  <div style="background:#11131a;border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;">
+                    <div style="display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015);">
+                      <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:{{g.color}};background:{{g.bg}};border-radius:999px;padding:4px 9px;"><span style="width:6px;height:6px;border-radius:50%;background:{{g.color}};"></span>{{g.sourceName}}</span>
+                      <span style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#e9ebf2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{g.name}}</span>
+                      <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6a6f7c;">{{g.countText}}</span>
+                    </div>
+                    <sc-for list="{{g.tracks}}" as="t" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:11px;padding:10px 15px;border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <span style="flex-shrink:0;width:7px;height:7px;border-radius:50%;background:{{t.dot}};"></span>
+                        <span style="flex:1;min-width:0;font-size:13.5px;color:#d4d8e0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{t.title}}</span>
+                        <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#5f6573;letter-spacing:0.03em;">{{t.meta}}</span>
+                        <a href="#" style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);color:#9298a6;text-decoration:none;font-size:13px;" style-hover="border-color:var(--accent,#00e0c6);color:var(--accent,#00e0c6);">↓</a>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ========== QUEUE (states showcase) ========== -->
+      <sc-if value="{{isQueue}}" hint-placeholder-val="{{true}}">
+        <div data-screen-label="Queue" style="padding:30px 6px 90px;max-width:880px;margin:0 auto;">
+          <div style="margin-bottom:8px;"><h2 style="margin:0;font-size:23px;font-weight:600;letter-spacing:-0.02em;">Queue</h2></div>
+          <p style="margin:0 0 22px;font-size:13px;color:#9298a6;">Live status across every state. <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6a6f7c;">{{countsText}}</span></p>
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <sc-for list="{{jobs}}" as="job" hint-placeholder-count="5">
+              <div style="{{job.rowStyle}}">
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                  <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:{{job.sourceBg}};color:{{job.sourceColor}};font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;">{{job.sourceInitials}}</span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                      <span style="font-size:14px;font-weight:500;color:#e9ebf2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;">{{job.title}}</span>
+                      <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.04em;color:{{job.statusColor}};background:{{job.statusBg}};border-radius:999px;padding:3px 9px;">
+                        <sc-if value="{{job.isDownloading}}" hint-placeholder-val="{{true}}"><span style="display:inline-flex;align-items:end;gap:1.5px;height:9px;"><i style="width:2px;height:100%;background:{{job.statusColor}};transform-origin:bottom;animation:eq 0.8s ease-in-out infinite;"></i><i style="width:2px;height:100%;background:{{job.statusColor}};transform-origin:bottom;animation:eq 0.8s ease-in-out infinite 0.15s;"></i><i style="width:2px;height:100%;background:{{job.statusColor}};transform-origin:bottom;animation:eq 0.8s ease-in-out infinite 0.3s;"></i></span></sc-if>
+                        <sc-if value="{{job.isQueued}}" hint-placeholder-val="{{true}}"><span style="width:5px;height:5px;border-radius:50%;background:{{job.statusColor}};animation:blink 1.4s ease-in-out infinite;"></span></sc-if>
+                        {{job.statusLabel}}
+                      </span>
+                    </div>
+                    <sc-if value="{{job.hasPlaylist}}" hint-placeholder-val="{{true}}">
+                      <div style="margin-top:3px;font-size:12px;color:#6a6f7c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">↳ in “{{job.playlist}}”</div>
+                    </sc-if>
+                  </div>
+                  <sc-if value="{{job.isDone}}" hint-placeholder-val="{{true}}">
+                    <a href="#" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border:1px solid rgba(255,255,255,0.13);border-radius:8px;background:rgba(255,255,255,0.04);color:#c3c8d4;font-size:12px;text-decoration:none;" style-hover="background:rgba(255,255,255,0.09);">↓ Save</a>
+                  </sc-if>
+                  <sc-if value="{{job.isFailed}}" hint-placeholder-val="{{true}}">
+                    <button onClick="{{job.retry}}" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border:1px solid rgba(255,93,115,0.3);border-radius:8px;background:rgba(255,93,115,0.08);color:#ff5d73;font-size:12px;cursor:pointer;">↻ Retry</button>
+                  </sc-if>
+                </div>
+                <sc-if value="{{job.showBar}}" hint-placeholder-val="{{true}}">
+                  <div style="margin-top:11px;display:flex;align-items:center;gap:10px;">
+                    <div style="flex:1;height:4px;border-radius:999px;background:rgba(255,255,255,0.07);overflow:hidden;position:relative;">
+                      <div style="height:100%;border-radius:999px;width:{{job.barPct}};background:{{job.barColor}};box-shadow:0 0 10px -1px {{job.barColor}};transition:width 0.4s ease;position:relative;overflow:hidden;">
+                        <sc-if value="{{job.shimmer}}" hint-placeholder-val="{{true}}"><span style="position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);animation:shim 1.3s linear infinite;"></span></sc-if>
+                      </div>
+                    </div>
+                    <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#9298a6;min-width:64px;text-align:right;">{{job.pctLabel}}</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{job.ytNote}}" hint-placeholder-val="{{true}}">
+                  <div style="margin-top:9px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6a6f7c;">↳ audio matched from YouTube · bitrate capped by source</div>
+                </sc-if>
+                <sc-if value="{{job.isFailed}}" hint-placeholder-val="{{true}}">
+                  <div style="margin-top:10px;display:flex;gap:8px;align-items:flex-start;background:rgba(255,93,115,0.08);border:1px solid rgba(255,93,115,0.2);border-radius:8px;padding:9px 11px;">
+                    <span style="color:#ff5d73;flex-shrink:0;font-size:13px;line-height:1.3;">⚠</span>
+                    <span style="font-size:12px;line-height:1.5;color:#e3a3ac;">{{job.error}}</span>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== COMPLETED ========== -->
+      <sc-if value="{{isCompleted}}" hint-placeholder-val="{{true}}">
+        <div data-screen-label="Completed" style="padding:30px 6px 90px;max-width:880px;margin:0 auto;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;flex-wrap:wrap;">
+            <div><h2 style="margin:0;font-size:23px;font-weight:600;letter-spacing:-0.02em;">Completed</h2><p style="margin:5px 0 0;font-size:13px;color:#9298a6;">Grouped by playlist · tagged with embedded cover art.</p></div>
+            <button onClick="{{zipAll}}" style="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border:none;border-radius:9px;background:var(--accent,#00e0c6);color:#08090d;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 8px 24px -8px color-mix(in srgb,var(--accent,#00e0c6) 70%,transparent);" style-hover="filter:brightness(1.08);">⤓ Download all (.zip)</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <sc-for list="{{completedGroups}}" as="g" hint-placeholder-count="3">
+              <div style="background:#11131a;border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;">
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015);">
+                  <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:{{g.color}};background:{{g.bg}};border-radius:999px;padding:4px 9px;"><span style="width:6px;height:6px;border-radius:50%;background:{{g.color}};"></span>{{g.sourceName}}</span>
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#e9ebf2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{g.name}}</span>
+                  <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6a6f7c;">{{g.countText}}</span>
+                  <button onClick="{{g.zip}}" style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border:1px solid rgba(255,255,255,0.12);border-radius:7px;background:transparent;color:#9298a6;font-size:11px;cursor:pointer;" style-hover="color:var(--accent,#00e0c6);border-color:var(--accent,#00e0c6);">.zip</button>
+                </div>
+                <sc-for list="{{g.tracks}}" as="t" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:11px;padding:11px 15px;border-bottom:1px solid rgba(255,255,255,0.04);" style-hover="background:rgba(255,255,255,0.02);">
+                    <span style="flex-shrink:0;width:7px;height:7px;border-radius:50%;background:{{t.dot}};"></span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:13.5px;color:#d4d8e0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{t.title}}</div>
+                      <sc-if value="{{t.isSpotify}}" hint-placeholder-val="{{true}}"><div style="margin-top:2px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#5f6573;">↳ from YouTube match</div></sc-if>
+                    </div>
+                    <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#5f6573;letter-spacing:0.03em;">{{t.meta}}</span>
+                    <a href="#" style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;border:1px solid rgba(255,255,255,0.1);color:#9298a6;text-decoration:none;font-size:14px;" style-hover="border-color:var(--accent,#00e0c6);color:var(--accent,#00e0c6);">↓</a>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== COMPONENTS ========== -->
+      <sc-if value="{{isComponents}}" hint-placeholder-val="{{true}}">
+        <div data-screen-label="Components" style="padding:30px 6px 90px;max-width:960px;margin:0 auto;">
+          <div style="margin-bottom:26px;"><h2 style="margin:0;font-size:23px;font-weight:600;letter-spacing:-0.02em;">Component sheet</h2><p style="margin:5px 0 0;font-size:13px;color:#9298a6;">Every building block, in the current accent.</p></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+
+            <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:13px;padding:18px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#7e8493;margin-bottom:14px;">Buttons</div>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                <button style="display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 18px;border:none;border-radius:9px;background:var(--accent,#00e0c6);color:#08090d;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 8px 24px -8px color-mix(in srgb,var(--accent,#00e0c6) 70%,transparent);">Primary</button>
+                <button style="display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 18px;border:1px solid rgba(255,255,255,0.13);border-radius:9px;background:#1b1e27;color:#e9ebf2;font-weight:500;font-size:13px;cursor:pointer;">Secondary</button>
+                <button style="display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 18px;border:1px solid rgba(255,255,255,0.1);border-radius:9px;background:transparent;color:#c3c8d4;font-weight:500;font-size:13px;cursor:pointer;">Ghost</button>
+                <button disabled style="display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 18px;border:none;border-radius:9px;background:var(--accent,#00e0c6);color:#08090d;font-weight:600;font-size:13px;opacity:0.4;cursor:not-allowed;">Disabled</button>
+              </div>
+            </div>
+
+            <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:13px;padding:18px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#7e8493;margin-bottom:14px;">Source chips</div>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:#ff7a2f;background:rgba(255,122,47,0.14);border-radius:999px;padding:6px 12px;"><span style="width:7px;height:7px;border-radius:50%;background:#ff7a2f;box-shadow:0 0 8px #ff7a2f;"></span>SoundCloud</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:#1ed760;background:rgba(30,215,96,0.14);border-radius:999px;padding:6px 12px;"><span style="width:7px;height:7px;border-radius:50%;background:#1ed760;box-shadow:0 0 8px #1ed760;"></span>Spotify</span>
+              </div>
+            </div>
+
+            <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:13px;padding:18px;grid-column:1/-1;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#7e8493;margin-bottom:14px;">Status badges</div>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:#9aa0b0;background:rgba(154,160,176,0.13);border-radius:999px;padding:4px 11px;"><span style="width:5px;height:5px;border-radius:50%;background:#9aa0b0;"></span>Queued</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--accent,#00e0c6);background:color-mix(in srgb,var(--accent,#00e0c6) 15%,transparent);border-radius:999px;padding:4px 11px;"><span style="display:inline-flex;align-items:end;gap:1.5px;height:9px;"><i style="width:2px;height:100%;background:var(--accent,#00e0c6);transform-origin:bottom;animation:eq 0.8s ease-in-out infinite;"></i><i style="width:2px;height:100%;background:var(--accent,#00e0c6);transform-origin:bottom;animation:eq 0.8s ease-in-out infinite 0.15s;"></i><i style="width:2px;height:100%;background:var(--accent,#00e0c6);transform-origin:bottom;animation:eq 0.8s ease-in-out infinite 0.3s;"></i></span>Downloading</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:#f4a63a;background:rgba(244,166,58,0.15);border-radius:999px;padding:4px 11px;">Converting</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:#2fe0a6;background:rgba(47,224,166,0.15);border-radius:999px;padding:4px 11px;">✓ Done</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:#ff5d73;background:rgba(255,93,115,0.15);border-radius:999px;padding:4px 11px;">⚠ Failed</span>
+              </div>
+            </div>
+
+            <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:13px;padding:18px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#7e8493;margin-bottom:14px;">Progress bar</div>
+              <div style="display:flex;flex-direction:column;gap:13px;">
+                <div style="height:4px;border-radius:999px;background:rgba(255,255,255,0.07);overflow:hidden;"><div style="height:100%;width:30%;border-radius:999px;background:var(--accent,#00e0c6);box-shadow:0 0 10px -1px var(--accent,#00e0c6);"></div></div>
+                <div style="height:4px;border-radius:999px;background:rgba(255,255,255,0.07);overflow:hidden;"><div style="height:100%;width:72%;border-radius:999px;background:var(--accent,#00e0c6);box-shadow:0 0 10px -1px var(--accent,#00e0c6);"></div></div>
+                <div style="height:4px;border-radius:999px;background:rgba(255,255,255,0.07);overflow:hidden;"><div style="height:100%;width:100%;border-radius:999px;background:#f4a63a;position:relative;overflow:hidden;"><span style="position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);animation:shim 1.3s linear infinite;"></span></div></div>
+              </div>
+            </div>
+
+            <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:13px;padding:18px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#7e8493;margin-bottom:14px;">Toggle &amp; dropdown</div>
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                <button onClick="{{toggleOriginal}}" style="{{toggleTrack}}"><span style="{{toggleKnob}}"></span></button>
+                <div style="position:relative;flex:1;min-width:120px;">
+                  <select style="width:100%;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#e9ebf2;padding:10px 30px 10px 12px;font-size:13px;font-weight:500;outline:none;cursor:pointer;"><option>MP3 · 320k</option></select>
+                  <span style="position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:#7e8493;font-size:10px;">▾</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:13px;padding:18px;grid-column:1/-1;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#7e8493;margin-bottom:14px;">URL input</div>
+              <textarea rows="2" spellcheck="false" style="width:100%;resize:none;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:11px;color:#e9ebf2;padding:13px 14px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;outline:none;" style-focus="border-color:var(--accent,#00e0c6);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#00e0c6) 16%,transparent);">https://soundcloud.com/artist/track</textarea>
+            </div>
+
+            <div style="background:#13151c;border:1px solid rgba(255,255,255,0.08);border-radius:13px;padding:18px;grid-column:1/-1;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#7e8493;margin-bottom:14px;">Info element — Spotify → YouTube</div>
+              <div style="display:flex;gap:9px;align-items:flex-start;background:rgba(30,215,96,0.07);border:1px solid rgba(30,215,96,0.18);border-radius:9px;padding:11px 13px;max-width:520px;">
+                <span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:rgba(30,215,96,0.18);color:#1ed760;font-size:10px;font-style:italic;font-family:Georgia,serif;margin-top:1px;">i</span>
+                <span style="font-size:12.5px;line-height:1.55;color:#9aa6a0;">Spotify can't be downloaded directly. Metadata &amp; cover come from Spotify; audio is the closest <span style="color:#1ed760;">YouTube</span> match — bitrate capped (~128–256k).</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  state = {
+    screen: 'login',
+    mobile: false,
+    accent: 'b',
+    text: 'https://soundcloud.com/blackcoffee/drive\nhttps://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd\nhttps://soundcloud.com/sets/afro-house-sunset',
+    format: 'mp3',
+    bitrate: '320k',
+    scOriginal: false,
+    openTip: null,
+    sim: [],
+    seed: [
+      { id: 'k1', source: 'soundcloud', title: 'Black Coffee — Drive (Original Mix)', playlist: 'Afro House — Sunset Sessions', status: 'downloading', progress: 62 },
+      { id: 'k2', source: 'spotify', title: 'Adriatique — X (feat. Delhia de France)', playlist: 'Melodic Techno Selects', status: 'converting', progress: 100 },
+      { id: 'k3', source: 'soundcloud', title: 'Massano — Changes', playlist: null, status: 'queued', progress: 0 },
+      { id: 'k4', source: 'spotify', title: 'Anyma — Explorer', playlist: 'Melodic Techno Selects', status: 'done', progress: 100 },
+      { id: 'k5', source: 'soundcloud', title: 'private-set / track-04', playlist: null, status: 'failed', progress: 0, error: 'Download disabled by uploader (HTTP 403). Add SOUNDCLOUD_AUTH_TOKEN in .env to fetch original / private files.' }
+    ],
+    completed: [
+      { name: 'Afro House — Sunset Sessions', source: 'soundcloud', tracks: [
+        { title: 'Black Coffee — Drive (Original Mix)', meta: 'FLAC · orig · 38.4 MB', source: 'soundcloud' },
+        { title: 'Caiiro — The Akan', meta: 'FLAC · 320k · 31.2 MB', source: 'soundcloud' },
+        { title: '&ME — Wir Sind (Rampa Remix)', meta: 'FLAC · 320k · 29.7 MB', source: 'soundcloud' }
+      ]},
+      { name: 'Melodic Techno Selects', source: 'spotify', tracks: [
+        { title: 'Massano — The Feeling', meta: 'MP3 · ~256k · 8.1 MB', source: 'spotify' },
+        { title: 'CamelPhat — Cola', meta: 'MP3 · ~256k · 9.0 MB', source: 'spotify' },
+        { title: 'Tale Of Us — Astral', meta: 'MP3 · ~256k · 7.6 MB', source: 'spotify' }
+      ]},
+      { name: 'Singles', source: 'mixed', tracks: [
+        { title: 'Ben Böhmer — Breathing', meta: 'M4A · 320k · 11.2 MB', source: 'soundcloud' }
+      ]}
+    ]
+  };
+
+  componentDidMount() { this.applyTheme(); }
+  componentDidUpdate() { this.applyTheme(); }
+  componentWillUnmount() { if (this.timer) clearInterval(this.timer); }
+
+  setRoot = (el) => { this.rootEl = el; };
+  setStage = (el) => { this.stageEl = el; };
+  accentHex() { return this.state.accent === 'b' ? '#00e0c6' : '#ff3d7f'; }
+  applyTheme() {
+    if (this.rootEl) this.rootEl.style.setProperty('--accent', this.accentHex());
+    if (this.stageEl) this.stageEl.style.maxWidth = this.state.mobile ? '414px' : '1180px';
+  }
+  rgba(hex, a) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  classify(url) {
+    const u = url.toLowerCase();
+    if (u.includes('soundcloud.com') || u.includes('snd.sc')) return 'soundcloud';
+    if (u.includes('spotify.com') || u.includes('spotify.link')) return 'spotify';
+    return 'unknown';
+  }
+  kindLabel(url, source) {
+    const u = url.toLowerCase();
+    if (source === 'spotify') return u.includes('/playlist/') ? 'Playlist' : u.includes('/album/') ? 'Album' : u.includes('/track/') ? 'Track' : 'Link';
+    if (source === 'soundcloud') return u.includes('/sets/') ? 'Set' : 'Track';
+    return 'Unknown';
+  }
+  prettyName(url) {
+    let s = url.replace(/^https?:\/\//, '').replace(/^www\./, '');
+    return s.length > 52 ? s.slice(0, 50) + '…' : s;
+  }
+  parseDetected() {
+    return this.state.text.split(/\n+/).map(s => s.trim()).filter(Boolean).map((url, i) => {
+      const source = this.classify(url);
+      return { url, source, isUnknown: source === 'unknown', tipId: 'd' + i,
+        name: this.prettyName(url), kindLabel: this.kindLabel(url, source) };
+    });
+  }
+
+  nav = (k) => { this.setState({ screen: k, openTip: null }); };
+  go = (k) => () => this.nav(k);
+  signIn = () => this.setState({ screen: 'main' });
+  demoFill = () => this.setState({ screen: 'main', text: this.state.text || 'https://soundcloud.com/blackcoffee/drive\nhttps://open.spotify.com/playlist/37i9dQZF1DX0XUsuxWHRQd' });
+  accentToA = () => this.setState({ accent: 'a' });
+  accentToB = () => this.setState({ accent: 'b' });
+  deviceDesktop = () => this.setState({ mobile: false });
+  deviceMobile = () => this.setState({ mobile: true });
+  onText = (e) => this.setState({ text: e.target.value });
+  onFormat = (e) => this.setState({ format: e.target.value });
+  onBitrate = (e) => this.setState({ bitrate: e.target.value });
+  toggleOriginal = () => this.setState(s => ({ scOriginal: !s.scOriginal }));
+  toggleTip = (id) => () => this.setState(s => ({ openTip: s.openTip === id ? null : id }));
+  zipAll = () => {};
+
+  retryJob = (id) => () => {
+    this.setState(s => ({ seed: s.seed.map(j => j.id === id ? { ...j, status: 'downloading', progress: 8, error: null } : j) }), () => this.runSim());
+  };
+
+  doDownload = () => {
+    const det = this.parseDetected().filter(d => !d.isUnknown);
+    if (!det.length) return;
+    const base = Date.now();
+    const jobs = det.map((d, i) => ({ id: 's' + (base + i), source: d.source, title: d.name, playlist: null, status: 'queued', progress: 0, sim: true }));
+    this.setState(s => ({ sim: [...jobs, ...s.sim], screen: 'main', text: '' }), () => this.runSim());
+  };
+
+  runSim() {
+    if (this.timer) return;
+    this.timer = setInterval(() => {
+      this.setState(s => {
+        const sim = s.sim.map(j => ({ ...j }));
+        const seed = s.seed.map(j => ({ ...j }));
+        const all = [...sim, ...seed];
+        const j = all.find(x => x.status !== 'done' && x.status !== 'failed');
+        if (!j) { clearInterval(this.timer); this.timer = null; return null; }
+        if (j.status === 'queued') { j.status = 'downloading'; j.progress = 10; }
+        else if (j.status === 'downloading') {
+          j.progress = Math.min(100, j.progress + 16 + Math.floor(Math.random() * 14));
+          if (j.progress >= 100) j.status = 'converting';
+        } else if (j.status === 'converting') { j.status = 'done'; j.progress = 100; }
+        let completed = s.completed;
+        if (j.status === 'done' && j.sim) completed = this.pushCompleted(s.completed, j);
+        return { sim, seed, completed };
+      });
+    }, 620);
+  }
+  pushCompleted(groups, job) {
+    const g = groups.map(x => ({ ...x, tracks: [...x.tracks] }));
+    let grp = g.find(x => x.name === 'Just downloaded');
+    if (!grp) { grp = { name: 'Just downloaded', source: 'mixed', tracks: [] }; g.unshift(grp); }
+    grp.tracks.push({ title: job.title, source: job.source, meta: this.state.format.toUpperCase() + ' · ' + this.state.bitrate + ' · —' });
+    return g;
+  }
+
+  sourceMeta(src) {
+    if (src === 'spotify') return { name: 'Spotify', initials: 'SP', color: '#1ed760', bg: 'rgba(30,215,96,0.14)' };
+    if (src === 'soundcloud') return { name: 'SoundCloud', initials: 'SC', color: '#ff7a2f', bg: 'rgba(255,122,47,0.14)' };
+    return { name: 'Mixed', initials: '••', color: '#9298a6', bg: 'rgba(146,152,166,0.14)' };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const A = this.accentHex();
+    const SM = {
+      queued: { label: 'Queued', color: '#9aa0b0', bg: 'rgba(154,160,176,0.13)' },
+      downloading: { label: 'Downloading', color: A, bg: this.rgba(A, 0.15) },
+      converting: { label: 'Converting', color: '#f4a63a', bg: 'rgba(244,166,58,0.15)' },
+      done: { label: 'Done', color: '#2fe0a6', bg: 'rgba(47,224,166,0.15)' },
+      failed: { label: 'Failed', color: '#ff5d73', bg: 'rgba(255,93,115,0.15)' }
+    };
+
+    const rawJobs = [...s.sim, ...s.seed];
+    const jobs = rawJobs.map(j => {
+      const sm = SM[j.status];
+      const sc = this.sourceMeta(j.source);
+      const active = j.status === 'downloading' || j.status === 'converting';
+      const accentRow = j.status === 'downloading';
+      return {
+        id: j.id, title: j.title, playlist: j.playlist, hasPlaylist: !!j.playlist,
+        sourceColor: sc.color, sourceBg: sc.bg, sourceInitials: sc.initials,
+        statusLabel: sm.label, statusColor: sm.color, statusBg: sm.bg,
+        isQueued: j.status === 'queued', isDownloading: j.status === 'downloading',
+        isDone: j.status === 'done', isFailed: j.status === 'failed',
+        showBar: active,
+        barPct: (j.status === 'converting' ? 100 : Math.max(5, j.progress)) + '%',
+        barColor: j.status === 'converting' ? '#f4a63a' : A,
+        shimmer: j.status === 'converting',
+        pctLabel: j.status === 'converting' ? 'processing…' : (Math.round(j.progress) + '%'),
+        ytNote: j.source === 'spotify' && j.status === 'done',
+        error: j.error || '',
+        retry: this.retryJob(j.id),
+        rowStyle: 'background:#11131a;border:1px solid ' + (accentRow ? this.rgba(A, 0.28) : 'rgba(255,255,255,0.07)') + ';border-radius:12px;padding:14px 15px;' + (accentRow ? 'box-shadow:0 0 0 1px ' + this.rgba(A, 0.12) + ',0 6px 26px -10px ' + this.rgba(A, 0.5) + ';' : '')
+      };
+    });
+
+    const counts = { queued: 0, downloading: 0, done: 0, failed: 0 };
+    rawJobs.forEach(j => {
+      if (j.status === 'done') counts.done++;
+      else if (j.status === 'failed') counts.failed++;
+      else if (j.status === 'queued') counts.queued++;
+      else counts.downloading++;
+    });
+    const countsText = `${counts.queued} queued · ${counts.downloading} active · ${counts.done} done · ${counts.failed} failed`;
+
+    const det = this.parseDetected();
+    const detected = det.map(d => {
+      const sc = this.sourceMeta(d.isUnknown ? 'mixed' : d.source);
+      return { name: d.name, kindLabel: d.kindLabel, isSpotify: d.source === 'spotify',
+        sourceName: d.isUnknown ? 'Unknown' : sc.name, sourceColor: d.isUnknown ? '#9298a6' : sc.color,
+        sourceBg: d.isUnknown ? 'rgba(146,152,166,0.12)' : sc.bg,
+        tipOpen: s.openTip === d.tipId, toggleTip: this.toggleTip(d.tipId) };
+    });
+    const detectedCount = det.filter(d => !d.isUnknown).length;
+    const hasSpotifyDetected = det.some(d => d.source === 'spotify');
+
+    const completedGroups = s.completed.map(g => {
+      const sc = this.sourceMeta(g.source);
+      return { name: g.name, sourceName: sc.name, color: sc.color, bg: sc.bg,
+        countText: g.tracks.length + (g.tracks.length === 1 ? ' track' : ' tracks'),
+        zip: this.zipAll,
+        tracks: g.tracks.map(t => {
+          const tm = this.sourceMeta(t.source || g.source);
+          return { title: t.title, meta: t.meta, isSpotify: (t.source || g.source) === 'spotify', dot: tm.color };
+        }) };
+    });
+
+    const navDefs = [['login', 'Login'], ['empty', 'Empty'], ['main', 'Main'], ['queue', 'Queue'], ['completed', 'Completed'], ['components', 'Components']];
+    const navItems = navDefs.map(([key, label]) => {
+      const on = s.screen === key;
+      return { label, go: this.go(key),
+        style: 'font-family:\'JetBrains Mono\',monospace;font-size:11.5px;font-weight:500;letter-spacing:0.02em;padding:7px 11px;border-radius:7px;cursor:pointer;border:1px solid ' + (on ? this.rgba(A, 0.5) : 'transparent') + ';background:' + (on ? this.rgba(A, 0.13) : 'transparent') + ';color:' + (on ? A : '#8a90a0') + ';' };
+    });
+
+    const swBase = 'width:17px;height:17px;border-radius:5px;cursor:pointer;padding:0;';
+    const swatchA = swBase + 'background:#ff3d7f;border:2px solid ' + (s.accent === 'a' ? '#fff' : 'transparent') + ';';
+    const swatchB = swBase + 'background:#00e0c6;border:2px solid ' + (s.accent === 'b' ? '#fff' : 'transparent') + ';';
+    const segBase = 'font-family:\'JetBrains Mono\',monospace;font-size:11px;font-weight:500;padding:5px 11px;border-radius:6px;border:none;cursor:pointer;';
+    const deskBtn = segBase + (!s.mobile ? 'background:' + this.rgba(A, 0.16) + ';color:' + A + ';' : 'background:transparent;color:#8a90a0;');
+    const mobBtn = segBase + (s.mobile ? 'background:' + this.rgba(A, 0.16) + ';color:' + A + ';' : 'background:transparent;color:#8a90a0;');
+
+    const toggleTrack = 'position:relative;width:40px;height:23px;border-radius:999px;border:none;cursor:pointer;padding:0;transition:background 0.2s;background:' + (s.scOriginal ? '#ff7a2f' : '#2a2e39') + ';';
+    const toggleKnob = 'position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;transition:transform 0.2s;transform:translateX(' + (s.scOriginal ? '17px' : '0') + ');box-shadow:0 1px 3px rgba(0,0,0,0.4);';
+
+    const waveBars = [0.4, 0.7, 0.45, 0.95, 0.6, 1, 0.7, 0.5, 0.85, 0.55, 0.75, 0.4, 0.6].map((h, i) => ({
+      style: 'width:3px;height:' + Math.round(h * 38) + 'px;border-radius:2px;background:var(--accent,#ff3d7f);transform-origin:bottom;opacity:' + (0.55 + h * 0.45) + ';animation:wave ' + (0.9 + (i % 4) * 0.18) + 's ease-in-out infinite ' + (i * 0.07) + 's;'
+    }));
+
+    return {
+      setRoot: this.setRoot, setStage: this.setStage,
+      isLogin: s.screen === 'login', isEmpty: s.screen === 'empty', isMain: s.screen === 'main',
+      isQueue: s.screen === 'queue', isCompleted: s.screen === 'completed', isComponents: s.screen === 'components',
+      navItems, swatchA, swatchB, deskBtn, mobBtn,
+      accentToA: this.accentToA, accentToB: this.accentToB, deviceDesktop: this.deviceDesktop, deviceMobile: this.deviceMobile,
+      signIn: this.signIn, demoFill: this.demoFill, doDownload: this.doDownload, zipAll: this.zipAll,
+      text: s.text, onText: this.onText, format: s.format, bitrate: s.bitrate,
+      onFormat: this.onFormat, onBitrate: this.onBitrate, toggleOriginal: this.toggleOriginal,
+      toggleTrack, toggleKnob,
+      formatOpts: ['mp3', 'm4a', 'opus', 'flac', 'ogg', 'wav'].map(v => ({ value: v, label: v.toUpperCase() })),
+      bitrateOpts: ['128k', '192k', '256k', '320k', 'best'].map(v => ({ value: v, label: v === 'best' ? 'Best / auto' : v })),
+      detected, detectedCount, hasDetected: detected.length > 0, hasSpotifyDetected,
+      downloadLabel: detectedCount ? 'Download (' + detectedCount + ')' : 'Download',
+      jobs, hasJobs: jobs.length > 0, countsText,
+      completedGroups, hasCompleted: completedGroups.length > 0,
+      waveBars
+    };
+  }
+}
+</script>
+</body>
+</html>
