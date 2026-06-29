@@ -14,7 +14,7 @@ from .auth import require_auth
 from .config import get_settings
 from .db import Database
 from .queue import JobQueue
-from .routes import downloads, files
+from .routes import downloads, files, settings as settings_routes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,6 +51,7 @@ app = FastAPI(title="Music Downloader", version="0.1.0", lifespan=lifespan)
 
 app.include_router(downloads.router)
 app.include_router(files.router)
+app.include_router(settings_routes.router)
 
 
 @app.get("/api/health")

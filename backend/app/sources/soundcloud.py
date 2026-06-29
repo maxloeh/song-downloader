@@ -18,6 +18,41 @@ _HOST_RE = re.compile(r"https?://[^/]*soundcloud\.com", re.IGNORECASE)
 _EMBED_THUMBNAIL_FORMATS = {"mp3", "m4a", "opus", "ogg", "flac"}
 
 
+def get_soundcloud_token() -> str:
+    """Active SoundCloud OAuth token: UI-entered (persisted) takes precedence."""
+    from ..secrets_store import get_secret
+
+    return get_secret("soundcloud_auth_token") or get_settings().soundcloud_auth_token
+
+
+def verify_soundcloud_token(token: str) -> str | None:
+    """Validate an OAuth token against SoundCloud; return the username or None.
+
+    Uses yt-dlp to obtain a working client_id, then calls the api-v2 `/me`
+    endpoint with the token. Runs network I/O, so call it off the event loop.
+    """
+    import yt_dlp
+
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
+            ie = ydl.get_info_extractor("Soundcloud")
+            ie.initialize()
+            client_id = getattr(ie, "_CLIENT_ID", None)
+            if not client_id:
+                return None
+            data = ie._download_json(
+                f"https://api-v2.soundcloud.com/me?client_id={client_id}",
+                "me",
+                note="Verifying SoundCloud token",
+                headers={"Authorization": f"OAuth {token}"},
+            )
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data.get("username") or data.get("permalink") or data.get("full_name")
+
+
 def split_artist_title(raw_title: str) -> tuple[str | None, str]:
     """Parse a "Artist - Title" pattern, common in SoundCloud track titles."""
     if not raw_title:
@@ -163,7 +198,7 @@ class SoundCloudSource:
         return pps
 
     def _apply_auth(self, opts: dict) -> None:
-        token = get_settings().soundcloud_auth_token
+        token = get_soundcloud_token()
         if token:
             # yt-dlp's SoundCloud extractor reads the OAuth token via the
             # special "oauth" username (it then sets its own Authorization

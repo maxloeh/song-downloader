@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, openProgressSocket } from "./api";
 import CompletedSection from "./components/CompletedSection";
 import JobRow from "./components/JobRow";
+import SoundCloudConnect from "./components/SoundCloudConnect";
 import UrlForm from "./components/UrlForm";
 import { FONT_MONO, T } from "./theme";
 import type { AppConfig, DownloadOptions, Job } from "./types";
@@ -176,6 +177,8 @@ export default function App() {
         {config ? (
           <>
             <UrlForm config={config} onSubmit={handleSubmit} />
+
+            <SoundCloudConnect />
 
             {queueJobs.length > 0 && (
               <div style={{ marginTop: 26 }}>

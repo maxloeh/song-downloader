@@ -1,4 +1,4 @@
-import type { AppConfig, DownloadOptions, FileItem, Job } from "./types";
+import type { AppConfig, DownloadOptions, FileItem, Job, SoundcloudStatus } from "./types";
 
 // Browser-handled Basic Auth: once the initial 401 prompt is satisfied, the
 // browser attaches the Authorization header to every subsequent same-origin
@@ -28,6 +28,17 @@ export const api = {
     }),
 
   getWsTicket: () => jsonFetch<{ ticket: string }>("/api/ws-ticket"),
+
+  getSoundcloudStatus: () => jsonFetch<SoundcloudStatus>("/api/settings/soundcloud"),
+
+  connectSoundcloud: (token: string) =>
+    jsonFetch<SoundcloudStatus>("/api/settings/soundcloud", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+
+  disconnectSoundcloud: () =>
+    jsonFetch<SoundcloudStatus>("/api/settings/soundcloud", { method: "DELETE" }),
 
   listFiles: () => jsonFetch<FileItem[]>("/api/files"),
 

@@ -38,6 +38,12 @@ export interface AppConfig {
   max_concurrent_downloads: number;
 }
 
+export interface SoundcloudStatus {
+  connected: boolean;
+  username: string | null;
+  source: "app" | "env" | null;
+}
+
 export interface FileItem {
   path: string;
   name: string;
