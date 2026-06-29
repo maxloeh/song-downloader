@@ -18,8 +18,21 @@ Install it like any normal app, then **open it** (wait until the whale icon says
 
 The first time, it downloads the app (a few minutes). After that it's quick.
 
-> Mac note: if you see *"cannot be opened because it is from an unidentified developer"*,
-> right-click the file → **Open** → **Open**. You only need to do this once.
+> #### 🍎 Mac: "Apple could not verify…" / *"Apple konnte nicht überprüfen…"*
+> This is normal for free apps not from the App Store — you allow it **once**:
+>
+> 1. Double-click the file. You'll get the warning — click **Done** (*Fertig*).
+>    **Do NOT click "Move to Trash" / *In den Papierkorb legen*.**
+> 2. Open **System Settings** (*Systemeinstellungen*) → **Privacy & Security**
+>    (*Datenschutz & Sicherheit*).
+> 3. Scroll down — you'll see *"Start music-dl … was blocked"*. Click
+>    **Open Anyway** (*Trotzdem öffnen*) and confirm with Touch ID / your password.
+> 4. Double-click the launcher again → click **Open** (*Öffnen*). Done forever.
+>
+> *(Older macOS: right-click the file → **Open** → **Open** works directly.)*
+
+> #### 🪟 Windows: "Windows protected your PC"
+> Click **More info** → **Run anyway**. Once only.
 
 ### 3. Create your account
 Your browser opens to **http://localhost:8080**. The first time, it asks you to
