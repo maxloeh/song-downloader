@@ -1,0 +1,28 @@
+services:
+  music-dl:
+    build: .
+    image: music-dl:latest
+    container_name: music-dl
+    restart: unless-stopped
+    ports:
+      # Host:Container. Bind to localhost only when fronting with Tailscale or a
+      # reverse proxy; use "8080:8080" to expose on the LAN.
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./downloads:/downloads
+    # Match the container's appuser (UID 1000) so /downloads stays writable.
+    # Override if your host user differs.
+    user: "1000:1000"
+
+  # Optional: auto-pull rebuilt images (yt-dlp needs frequent updates).
+  # Enable with: docker compose --profile watchtower up -d
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: music-dl-watchtower
+    restart: unless-stopped
+    profiles: ["watchtower"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 86400 --cleanup music-dl

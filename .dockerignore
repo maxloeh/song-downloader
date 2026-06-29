@@ -1,0 +1,16 @@
+.git
+.idea
+.vscode
+**/__pycache__
+**/*.pyc
+.venv
+venv
+frontend/node_modules
+frontend/dist
+backend/static
+downloads
+*.sqlite3
+*.db
+.env
+.pytest_cache
+.ruff_cache

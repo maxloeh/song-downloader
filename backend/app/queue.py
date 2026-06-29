@@ -1,0 +1,222 @@
+"""Async job queue, worker pool, in-memory registry and progress broadcasting.
+
+The queue owns the lifecycle of every Job: it enumerates URLs into tracks,
+fans them out into per-track jobs, runs the blocking download in a thread, runs
+metadata verification, persists state to SQLite, and pushes every change to
+subscribed WebSocket clients.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from pathlib import Path
+
+from .config import Settings
+from .db import Database
+from .metadata import verify_and_fix
+from .models import (
+    DownloadOptions,
+    Job,
+    JobStatus,
+    SourceType,
+    TrackRef,
+)
+from .sources import resolve_source
+from .sources.base import UnsupportedURLError
+
+log = logging.getLogger("music-dl.queue")
+
+
+class Broadcaster:
+    """Fan-out of job events to connected WebSocket clients."""
+
+    def __init__(self) -> None:
+        self._subscribers: set[asyncio.Queue] = set()
+
+    def subscribe(self) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue(maxsize=1000)
+        self._subscribers.add(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue) -> None:
+        self._subscribers.discard(q)
+
+    def publish(self, event: dict) -> None:
+        for q in list(self._subscribers):
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
+
+
+class JobQueue:
+    def __init__(self, settings: Settings, db: Database) -> None:
+        self._settings = settings
+        self._db = db
+        self._queue: asyncio.Queue[Job] = asyncio.Queue()
+        self._jobs: dict[str, Job] = {}
+        self._workers: list[asyncio.Task] = []
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self.broadcaster = Broadcaster()
+
+    # ── lifecycle ────────────────────────────────────────────────────────────
+    async def start(self) -> None:
+        self._loop = asyncio.get_running_loop()
+        # Restore history into the registry (but don't requeue old work).
+        for job in await self._db.load_recent():
+            # Mark jobs that were mid-flight at shutdown as failed.
+            if job.status in (JobStatus.QUEUED, JobStatus.DOWNLOADING, JobStatus.CONVERTING):
+                job.status = JobStatus.FAILED
+                job.error = "Interrupted by server restart"
+            self._jobs[job.id] = job
+        n = self._settings.max_concurrent_downloads
+        self._workers = [asyncio.create_task(self._worker(i)) for i in range(n)]
+        log.info("Job queue started with %d workers", n)
+
+    async def stop(self) -> None:
+        for w in self._workers:
+            w.cancel()
+        await asyncio.gather(*self._workers, return_exceptions=True)
+        self._workers.clear()
+
+    # ── public API ───────────────────────────────────────────────────────────
+    def list_jobs(self) -> list[Job]:
+        return sorted(self._jobs.values(), key=lambda j: j.created_at, reverse=True)
+
+    def get_job(self, job_id: str) -> Job | None:
+        return self._jobs.get(job_id)
+
+    async def submit_urls(self, urls: list[str], options: DownloadOptions) -> list[Job]:
+        """Enumerate each URL and enqueue a job per resolved track."""
+        created: list[Job] = []
+        for raw in urls:
+            url = raw.strip()
+            if not url:
+                continue
+            try:
+                source = resolve_source(url)
+            except UnsupportedURLError as exc:
+                job = Job(
+                    source=SourceType.SOUNDCLOUD,  # placeholder; immediately failed
+                    url=url,
+                    options=options,
+                    status=JobStatus.FAILED,
+                    error=str(exc),
+                )
+                await self._register(job)
+                created.append(job)
+                continue
+
+            try:
+                tracks = await asyncio.to_thread(source.enumerate, url)
+            except Exception as exc:  # enumeration failure -> one failed job
+                log.exception("enumerate failed for %s", url)
+                job = Job(
+                    source=source.source_type,
+                    url=url,
+                    options=options,
+                    status=JobStatus.FAILED,
+                    error=f"Could not read URL: {exc}",
+                )
+                await self._register(job)
+                created.append(job)
+                continue
+
+            for track in tracks:
+                job = Job(
+                    source=track.source,
+                    url=track.url,
+                    title=track.title,
+                    playlist=track.playlist,
+                    options=options,
+                )
+                await self._register(job)
+                await self._queue.put(job)
+                created.append(job)
+        return created
+
+    # ── internals ────────────────────────────────────────────────────────────
+    async def _register(self, job: Job) -> None:
+        self._jobs[job.id] = job
+        await self._db.upsert(job)
+        self.broadcaster.publish({"type": "job", "job": job.model_dump()})
+
+    def _publish_update(self, job: Job) -> None:
+        job.touch()
+        self.broadcaster.publish({"type": "job", "job": job.model_dump()})
+
+    async def _persist_update(self, job: Job) -> None:
+        self._publish_update(job)
+        await self._db.upsert(job)
+
+    async def _worker(self, idx: int) -> None:
+        while True:
+            job = await self._queue.get()
+            try:
+                await self._run_job(job)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # pragma: no cover - defensive
+                log.exception("worker %d crashed on job %s", idx, job.id)
+                job.status = JobStatus.FAILED
+                job.error = str(exc)
+                await self._persist_update(job)
+            finally:
+                self._queue.task_done()
+
+    async def _run_job(self, job: Job) -> None:
+        source = resolve_source(job.url)
+        track = TrackRef(
+            url=job.url, source=job.source, title=job.title, playlist=job.playlist
+        )
+
+        job.status = JobStatus.DOWNLOADING
+        await self._persist_update(job)
+
+        loop = asyncio.get_running_loop()
+
+        # Progress callback runs inside the worker thread; marshal onto the loop.
+        def on_progress(pct: float, label: str, audio_source: str | None) -> None:
+            def apply() -> None:
+                job.progress = round(pct, 1)
+                if audio_source:
+                    job.audio_source = audio_source
+                if label == "converting" and job.status != JobStatus.CONVERTING:
+                    job.status = JobStatus.CONVERTING
+                elif label == "downloading" and job.status != JobStatus.DOWNLOADING:
+                    job.status = JobStatus.DOWNLOADING
+                self._publish_update(job)
+
+            loop.call_soon_threadsafe(apply)
+
+        try:
+            path: Path = await asyncio.to_thread(
+                source.download, track, job.options, on_progress
+            )
+        except Exception as exc:
+            log.exception("download failed for %s", job.url)
+            job.status = JobStatus.FAILED
+            job.error = str(exc)
+            job.progress = 0.0
+            await self._persist_update(job)
+            return
+
+        # Metadata verification / fixups (best-effort).
+        try:
+            await asyncio.to_thread(verify_and_fix, path)
+        except Exception as exc:
+            log.warning("metadata verify failed for %s: %s", path, exc)
+
+        job.status = JobStatus.DONE
+        job.progress = 100.0
+        job.output_path = self._relative_path(path)
+        if not job.title:
+            job.title = path.stem
+        await self._persist_update(job)
+
+    def _relative_path(self, path: Path) -> str:
+        try:
+            return str(path.relative_to(self._settings.download_dir))
+        except ValueError:
+            return path.name
