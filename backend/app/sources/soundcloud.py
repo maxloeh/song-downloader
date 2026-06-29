@@ -165,8 +165,12 @@ class SoundCloudSource:
     def _apply_auth(self, opts: dict) -> None:
         token = get_settings().soundcloud_auth_token
         if token:
-            # yt-dlp accepts the oauth token via the SoundCloud extractor.
-            opts.setdefault("http_headers", {})["Authorization"] = f"OAuth {token}"
+            # yt-dlp's SoundCloud extractor reads the OAuth token via the
+            # special "oauth" username (it then sets its own Authorization
+            # header for the API calls that resolve stream URLs). Putting the
+            # token in http_headers does NOT reach those calls.
+            opts["username"] = "oauth"
+            opts["password"] = token
 
     def _final_filepath(self, ydl, info: dict, opts: DownloadOptions) -> str:
         # After FFmpegExtractAudio the extension matches the chosen format.

@@ -28,6 +28,24 @@ from .sources.base import UnsupportedURLError
 log = logging.getLogger("music-dl.queue")
 
 
+def _humanize_error(exc: object) -> str:
+    """Translate noisy engine errors into actionable messages for the UI."""
+    msg = str(exc)
+    low = msg.lower()
+    if "drm protected" in low or "no video formats" in low or "only images are available" in low:
+        return (
+            "SoundCloud only offered protected streams for this track. It usually means the "
+            "track needs a logged-in account — set SOUNDCLOUD_AUTH_TOKEN in .env. (Some tracks "
+            "are genuinely download-disabled or Go+ exclusive and can't be fetched.)"
+        )
+    if "http error 403" in low or "forbidden" in low:
+        return (
+            "Access denied by the source (HTTP 403). The uploader may have disabled downloads; "
+            "set SOUNDCLOUD_AUTH_TOKEN in .env to fetch original / private files."
+        )
+    return msg
+
+
 class Broadcaster:
     """Fan-out of job events to connected WebSocket clients."""
 
@@ -117,7 +135,7 @@ class JobQueue:
                     url=url,
                     options=options,
                     status=JobStatus.FAILED,
-                    error=f"Could not read URL: {exc}",
+                    error=_humanize_error(exc),
                 )
                 await self._register(job)
                 created.append(job)
@@ -197,7 +215,7 @@ class JobQueue:
         except Exception as exc:
             log.exception("download failed for %s", job.url)
             job.status = JobStatus.FAILED
-            job.error = str(exc)
+            job.error = _humanize_error(exc)
             job.progress = 0.0
             await self._persist_update(job)
             return
