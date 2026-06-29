@@ -150,6 +150,8 @@ class JobQueue:
                     title=track.title,
                     playlist=track.playlist,
                     artwork_url=track.artwork_url,
+                    artist=track.artist,
+                    duration=track.duration,
                     options=options,
                 )
                 await self._register(job)
@@ -203,7 +205,13 @@ class JobQueue:
     async def _run_job(self, job: Job) -> None:
         source = resolve_source(job.url)
         track = TrackRef(
-            url=job.url, source=job.source, title=job.title, playlist=job.playlist
+            url=job.url,
+            source=job.source,
+            title=job.title,
+            artist=job.artist,
+            artwork_url=job.artwork_url,
+            duration=job.duration,
+            playlist=job.playlist,
         )
 
         job.status = JobStatus.DOWNLOADING

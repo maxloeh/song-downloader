@@ -46,6 +46,7 @@ class TrackRef(BaseModel):
     title: str | None = None
     artist: str | None = None
     artwork_url: str | None = None
+    duration: float | None = None  # seconds; used to score YouTube matches
     # The playlist/album this track belongs to, used for the output folder.
     playlist: str | None = None
 
@@ -66,6 +67,8 @@ class Job(BaseModel):
     title: str | None = None
     playlist: str | None = None
     artwork_url: str | None = None
+    artist: str | None = None
+    duration: float | None = None
     options: DownloadOptions
     status: JobStatus = JobStatus.QUEUED
     progress: float = 0.0  # 0..100

@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     title        TEXT,
     playlist     TEXT,
     artwork_url  TEXT,
+    artist       TEXT,
+    duration     REAL,
     options      TEXT NOT NULL,
     status       TEXT NOT NULL,
     progress     REAL NOT NULL,
@@ -49,10 +51,11 @@ class Database:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
-            # Migrate older DBs that predate the artwork_url column.
+            # Migrate older DBs that predate later columns.
             cols = {r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()}
-            if "artwork_url" not in cols:
-                conn.execute("ALTER TABLE jobs ADD COLUMN artwork_url TEXT")
+            for name, decl in (("artwork_url", "TEXT"), ("artist", "TEXT"), ("duration", "REAL")):
+                if name not in cols:
+                    conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} {decl}")
 
     async def init(self) -> None:
         await asyncio.to_thread(self._init_sync)
@@ -67,12 +70,12 @@ class Database:
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO jobs (id, source, url, title, playlist, artwork_url, options,
-                                  status, progress, audio_source, output_path, error,
-                                  created_at, updated_at)
-                VALUES (:id, :source, :url, :title, :playlist, :artwork_url, :options,
-                        :status, :progress, :audio_source, :output_path, :error,
-                        :created_at, :updated_at)
+                INSERT INTO jobs (id, source, url, title, playlist, artwork_url, artist,
+                                  duration, options, status, progress, audio_source,
+                                  output_path, error, created_at, updated_at)
+                VALUES (:id, :source, :url, :title, :playlist, :artwork_url, :artist,
+                        :duration, :options, :status, :progress, :audio_source,
+                        :output_path, :error, :created_at, :updated_at)
                 ON CONFLICT(id) DO UPDATE SET
                     title=excluded.title,
                     playlist=excluded.playlist,
@@ -91,6 +94,8 @@ class Database:
                     "title": job.title,
                     "playlist": job.playlist,
                     "artwork_url": job.artwork_url,
+                    "artist": job.artist,
+                    "duration": job.duration,
                     "options": json.dumps(job.options.model_dump()),
                     "status": job.status.value,
                     "progress": job.progress,

@@ -7,6 +7,7 @@ which lets us fall back to a YouTube match for tracks SoundCloud won't serve.
 
 from __future__ import annotations
 
+import difflib
 import logging
 import re
 import urllib.parse
@@ -112,6 +113,74 @@ def _should_fallback(exc: Exception) -> bool:
     return any(sig in low for sig in _FALLBACK_SIGNALS)
 
 
+# How many YouTube candidates to weigh before downloading.
+_YT_SEARCH_N = 6
+# Title substrings that usually signal a wrong/manipulated upload.
+_JUNK_MARKERS = (
+    "1 hour",
+    "10 hour",
+    " hours",
+    "sped up",
+    "slowed",
+    "nightcore",
+    "reaction",
+    "karaoke",
+    "8d audio",
+)
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9 ]", " ", (s or "").lower())
+
+
+def _title_similarity(a: str, b: str) -> float:
+    return difflib.SequenceMatcher(None, _norm(a), _norm(b)).ratio()
+
+
+def _score_candidate(entry: dict, target_dur: float | None, query: str, artist: str | None) -> float:
+    """Higher is better. Duration closeness dominates; title similarity breaks ties."""
+    title = entry.get("title") or ""
+    channel = (entry.get("channel") or entry.get("uploader") or "").lower()
+    score = 0.0
+
+    dur = entry.get("duration")
+    if target_dur and dur:
+        diff = abs(dur - target_dur)
+        tol = max(30.0, target_dur * 0.12)
+        if diff <= tol:
+            score += 100.0 - (diff / tol) * 40.0  # 60..100 inside tolerance
+        else:
+            score -= (diff - tol) * 0.5  # grows worse the further off
+    elif target_dur and not dur:
+        score -= 5.0  # unknown duration is mildly suspicious
+
+    score += _title_similarity(query, title) * 30.0
+
+    # YouTube Music auto-uploads use clean "<Artist> - Topic" channels.
+    if channel.endswith("- topic"):
+        score += 15.0
+    if artist and artist.lower() in channel:
+        score += 8.0
+
+    low = title.lower()
+    if any(m in low for m in _JUNK_MARKERS):
+        score -= 25.0
+    return score
+
+
+def _pick_best_match(
+    entries: list[dict], target_dur: float | None, query: str, artist: str | None
+) -> dict | None:
+    best, best_score = None, float("-inf")
+    for e in entries:
+        if not e:
+            continue
+        s = _score_candidate(e, target_dur, query, artist)
+        if s > best_score:
+            best, best_score = e, s
+    return best
+
+
 def download_via_youtube(
     track: TrackRef, opts: DownloadOptions, on_progress: ProgressCallback
 ) -> Path:
@@ -140,6 +209,20 @@ def download_via_youtube(
         folder = settings.download_dir
     outtmpl = str(folder / f"{safe}.%(ext)s")
 
+    # 1. Search several candidates (flat = one cheap request) and score them.
+    on_progress(4.0, "downloading", "youtube")
+    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "extract_flat": True}) as ydl:
+        res = ydl.extract_info(f"ytsearch{_YT_SEARCH_N}:{query}", download=False)
+    candidates = (res.get("entries") if isinstance(res, dict) else None) or []
+    best = _pick_best_match(candidates, track.duration, query, track.artist)
+    if not best:
+        raise RuntimeError(f"No YouTube match found for: {title}")
+    video_url = best.get("url") or f"https://www.youtube.com/watch?v={best.get('id')}"
+    log.info(
+        "YouTube match for %r -> %r (dur %ss vs target %ss)",
+        title, best.get("title"), best.get("duration"), track.duration,
+    )
+
     def hook(d: dict) -> None:
         if d.get("status") == "downloading":
             total = d.get("total_bytes") or d.get("total_bytes_estimate")
@@ -157,19 +240,15 @@ def download_via_youtube(
         "writethumbnail": embed_cover,
         "format": "bestaudio/best",
         "noplaylist": True,
-        "default_search": "ytsearch",
         "progress_hooks": [hook],
         "postprocessors": _audio_postprocessors(opts),
     }
 
+    # 2. Download the chosen candidate.
     on_progress(8.0, "downloading", "youtube")
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"ytsearch1:{query}", download=True)
-        entries = info.get("entries") if isinstance(info, dict) else None
-        if not entries:
-            raise RuntimeError(f"No YouTube match found for: {title}")
-        entry = entries[0]
-        final = Path(ydl.prepare_filename(entry)).with_suffix(f".{opts.format}")
+        info = ydl.extract_info(video_url, download=True)
+        final = Path(ydl.prepare_filename(info)).with_suffix(f".{opts.format}")
 
     # Force the clean SoundCloud title; only set artist when the title encodes
     # it ("Artist - Title"), to avoid clobbering YouTube's (often richer)
@@ -248,12 +327,14 @@ class SoundCloudSource:
         # SoundCloud serves a tiny 100px "-large" by default; request a bigger one.
         if art:
             art = art.replace("-large.", "-t200x200.")
+        ms = t.get("full_duration") or t.get("duration")
         return TrackRef(
             url=t.get("permalink_url") or t.get("uri"),
             source=SourceType.SOUNDCLOUD,
             title=t.get("title"),
             artist=(t.get("user") or {}).get("username"),
             artwork_url=art,
+            duration=(ms / 1000.0) if ms else None,
             playlist=playlist,
         )
 
@@ -279,6 +360,7 @@ class SoundCloudSource:
                         title=entry.get("title"),
                         artist=entry.get("uploader"),
                         artwork_url=entry.get("thumbnail"),
+                        duration=entry.get("duration"),
                         playlist=playlist,
                     )
                 )
@@ -290,6 +372,7 @@ class SoundCloudSource:
                 title=info.get("title"),
                 artist=info.get("uploader"),
                 artwork_url=info.get("thumbnail"),
+                duration=info.get("duration"),
             )
         ]
 
