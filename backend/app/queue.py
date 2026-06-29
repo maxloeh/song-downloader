@@ -34,14 +34,16 @@ def _humanize_error(exc: object) -> str:
     low = msg.lower()
     if "drm protected" in low or "no video formats" in low or "only images are available" in low:
         return (
-            "SoundCloud only offered protected streams for this track. It usually means the "
-            "track needs a logged-in account — set SOUNDCLOUD_AUTH_TOKEN in .env. (Some tracks "
-            "are genuinely download-disabled or Go+ exclusive and can't be fetched.)"
+            "SoundCloud only offers encrypted/monetized streams for this track, so it can't be "
+            "downloaded. If it's a private or original-quality track you have access to, connect "
+            "your SoundCloud account (panel above) and retry. Many monetized or licensed tracks "
+            "are protected by SoundCloud and can't be fetched by any tool."
         )
     if "http error 403" in low or "forbidden" in low:
         return (
-            "Access denied by the source (HTTP 403). The uploader may have disabled downloads; "
-            "set SOUNDCLOUD_AUTH_TOKEN in .env to fetch original / private files."
+            "Access denied by the source (HTTP 403). The uploader may have disabled downloads. "
+            "Connect your SoundCloud account (panel above) to fetch original / private files you "
+            "have access to."
         )
     return msg
 
