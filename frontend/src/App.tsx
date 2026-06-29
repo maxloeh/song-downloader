@@ -3,12 +3,14 @@ import { api, openProgressSocket } from "./api";
 import CompletedSection from "./components/CompletedSection";
 import JobRow from "./components/JobRow";
 import SoundCloudConnect from "./components/SoundCloudConnect";
+import SpotifyConnect from "./components/SpotifyConnect";
 import UrlForm from "./components/UrlForm";
 import { FONT_MONO, T } from "./theme";
 import type { AppConfig, DownloadOptions, Job } from "./types";
 
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [spotifyConfigured, setSpotifyConfigured] = useState(false);
   const [jobs, setJobs] = useState<Record<string, Job>>({});
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -21,7 +23,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    api.getConfig().then(setConfig).catch((e) => setError(String(e)));
+    api
+      .getConfig()
+      .then((c) => {
+        setConfig(c);
+        setSpotifyConfigured(c.spotify_configured);
+      })
+      .catch((e) => setError(String(e)));
     api.getJobs().then((list) => {
       const map: Record<string, Job> = {};
       list.forEach((j) => (map[j.id] = j));
@@ -209,9 +217,14 @@ export default function App() {
 
         {config ? (
           <>
-            <UrlForm config={config} onSubmit={handleSubmit} />
+            <UrlForm
+              config={config}
+              spotifyConfigured={spotifyConfigured}
+              onSubmit={handleSubmit}
+            />
 
             <SoundCloudConnect />
+            <SpotifyConnect onChange={setSpotifyConfigured} />
 
             {queueJobs.length > 0 && (
               <div style={{ marginTop: 26 }}>

@@ -4,6 +4,7 @@ import type { AppConfig, DownloadOptions } from "../types";
 
 interface Props {
   config: AppConfig;
+  spotifyConfigured: boolean;
   onSubmit: (urls: string[], options: DownloadOptions) => Promise<void>;
 }
 
@@ -45,7 +46,7 @@ const monoLabel: React.CSSProperties = {
   color: T.faint,
 };
 
-export default function UrlForm({ config, onSubmit }: Props) {
+export default function UrlForm({ config, spotifyConfigured, onSubmit }: Props) {
   const [text, setText] = useState("");
   const [format, setFormat] = useState(config.default_format);
   const [bitrate, setBitrate] = useState(config.default_bitrate);
@@ -318,7 +319,7 @@ export default function UrlForm({ config, onSubmit }: Props) {
       </div>
 
       {/* Spotify / YouTube source banner */}
-      {(hasSpotify || !config.spotify_configured) && (
+      {(hasSpotify || !spotifyConfigured) && (
         <div
           style={{
             marginTop: 13,
@@ -354,12 +355,11 @@ export default function UrlForm({ config, onSubmit }: Props) {
             Spotify links are matched to audio on <span style={{ color: "#1ed760" }}>YouTube</span>{" "}
             — metadata &amp; cover come from Spotify, bitrate is capped (~128–256k). FLAC won't be
             true lossless.
-            {!config.spotify_configured && (
+            {!spotifyConfigured && (
               <>
                 {" "}
                 <span style={{ color: "#f4a63a" }}>
-                  No Spotify API credentials set — add SPOTIFY_CLIENT_ID/SECRET to .env for reliable
-                  results.
+                  No Spotify API credentials set — connect Spotify below for reliable results.
                 </span>
               </>
             )}

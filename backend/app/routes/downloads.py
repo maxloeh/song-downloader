@@ -24,13 +24,15 @@ router = APIRouter(prefix="/api", tags=["downloads"])
 @router.get("/config")
 def get_config(_: str = Depends(require_auth)) -> dict:
     """UI bootstrap: supported formats/bitrates and capability flags."""
+    from ..sources.spotify import spotify_configured
+
     s = get_settings()
     return {
         "formats": SUPPORTED_FORMATS,
         "bitrates": SUPPORTED_BITRATES,
         "default_format": s.default_format,
         "default_bitrate": s.default_bitrate,
-        "spotify_configured": s.spotify_configured,
+        "spotify_configured": spotify_configured(),
         "max_concurrent_downloads": s.max_concurrent_downloads,
     }
 

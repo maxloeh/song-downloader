@@ -45,6 +45,11 @@ export interface SoundcloudStatus {
   source: "app" | "env" | null;
 }
 
+export interface SpotifyStatus {
+  configured: boolean;
+  source: "app" | "env" | null;
+}
+
 export interface FileItem {
   path: string;
   name: string;

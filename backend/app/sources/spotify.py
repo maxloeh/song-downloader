@@ -30,6 +30,55 @@ def _spotdl_bitrate_value(bitrate: str) -> str:
     return "disable" if bitrate == "best" else bitrate
 
 
+def get_spotify_credentials() -> tuple[str, str]:
+    """(client_id, client_secret); UI-entered (persisted) takes precedence."""
+    from ..secrets_store import get_secret
+
+    settings = get_settings()
+    cid = get_secret("spotify_client_id") or settings.spotify_client_id
+    secret = get_secret("spotify_client_secret") or settings.spotify_client_secret
+    return cid or "", secret or ""
+
+
+def spotify_configured() -> bool:
+    cid, secret = get_spotify_credentials()
+    return bool(cid and secret)
+
+
+def verify_spotify_credentials(client_id: str, client_secret: str) -> bool:
+    """Validate creds via Spotify's client-credentials token endpoint."""
+    import base64
+    import json
+    import urllib.parse
+    import urllib.request
+
+    auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    body = urllib.parse.urlencode({"grant_type": "client_credentials"}).encode()
+    req = urllib.request.Request(
+        "https://accounts.spotify.com/api/token",
+        data=body,
+        headers={
+            "Authorization": f"Basic {auth}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.load(resp)
+        return bool(data.get("access_token"))
+    except Exception:
+        return False
+
+
+def reset_spotdl_client() -> None:
+    """Drop the memoised client so it rebuilds with new credentials."""
+    global _spotdl_client, _spotdl_format, _spotdl_bitrate
+    with _spotdl_lock:
+        _spotdl_client = None
+        _spotdl_format = None
+        _spotdl_bitrate = None
+
+
 def _get_spotdl(opts: DownloadOptions):
     """Lazily build (and memoise) a configured Spotdl client for these options."""
     global _spotdl_client, _spotdl_format, _spotdl_bitrate
@@ -53,10 +102,11 @@ def _get_spotdl(opts: DownloadOptions):
             "print_errors": False,
             "simple_tui": True,
         }
+        cid, secret = get_spotify_credentials()
         client = Spotdl(
-            client_id=settings.spotify_client_id or "5f573c9620494bae87890c0f08a60293",
-            client_secret=settings.spotify_client_secret or "212476d9b0f3472eaa762d90b19b0ba8",
-            no_cache=not settings.spotify_configured,
+            client_id=cid or "5f573c9620494bae87890c0f08a60293",
+            client_secret=secret or "212476d9b0f3472eaa762d90b19b0ba8",
+            no_cache=not spotify_configured(),
             downloader_settings=downloader_settings,
         )
         _spotdl_client = client
