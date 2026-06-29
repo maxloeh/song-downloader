@@ -57,7 +57,9 @@ Three double-click files do everything — no background hogging:
 | **Update music-dl** | Gets the newest version, then opens it. (Only when you want updates.) |
 
 It does **not** auto-start on its own — it runs only after you hit **Start**, and
-stays off after **Stop** (even if you restart your computer).
+stays off after **Stop** (even if you restart your computer). It also **stops
+itself automatically after ~30 minutes** of no use (unless a download is running),
+so you don't have to remember — just hit **Start** again next time.
 
 > To go fully idle you can also quit Docker Desktop; next time just hit **Start**
 > (it'll relaunch Docker for you).

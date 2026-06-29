@@ -90,6 +90,7 @@ Connect Spotify and SoundCloud from the in-app panels. Everything below in
 | `DOWNLOAD_DIR` | | In-container download path (default `/downloads`). |
 | `SPOTDL_AUDIO_PROVIDERS` | | Fallback order, e.g. `youtube-music,youtube`. |
 | `YTDLP_AUTO_UPDATE` | | `pip install -U yt-dlp spotdl` on container start (default `true`). |
+| `IDLE_SHUTDOWN_MINUTES` | | Auto-stop after this many idle minutes with no active downloads (default `30`, `0` disables). Pairs with the launcher's `--restart no`; set `0` for always-on `restart: unless-stopped` hosts. |
 
 ### Getting Spotify credentials
 1. Go to <https://developer.spotify.com/dashboard> → **Create app**.

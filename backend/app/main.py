@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
+import signal
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -26,6 +30,23 @@ log = logging.getLogger("music-dl")
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
+async def _idle_watcher(app: FastAPI, minutes: int) -> None:
+    """Stop the process after `minutes` of no requests and no active downloads.
+
+    With the launcher's `--restart no`, a clean exit stops the container; the
+    user just hits Start again. Active/queued jobs always keep it alive.
+    """
+    timeout = minutes * 60
+    while True:
+        await asyncio.sleep(60)
+        idle = time.monotonic() - app.state.last_activity
+        if idle < timeout or app.state.queue.has_pending():
+            continue
+        log.info("Idle for %.0f min with no active downloads — shutting down.", idle / 60)
+        os.kill(os.getpid(), signal.SIGTERM)  # graceful uvicorn shutdown
+        return
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -40,14 +61,33 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     app.state.db = db
     app.state.queue = queue
+    app.state.last_activity = time.monotonic()
+
+    idle_task = None
+    if settings.idle_shutdown_minutes > 0:
+        idle_task = asyncio.create_task(_idle_watcher(app, settings.idle_shutdown_minutes))
+        log.info("Idle auto-stop enabled: %d min.", settings.idle_shutdown_minutes)
+
     log.info("music-dl ready; downloads -> %s", settings.download_dir)
     try:
         yield
     finally:
+        if idle_task:
+            idle_task.cancel()
         await queue.stop()
 
 
 app = FastAPI(title="Music Downloader", version="0.1.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def track_activity(request: Request, call_next):
+    # Any real request counts as activity; ignore health checks so external
+    # monitors don't keep an idle instance alive forever.
+    if request.url.path != "/api/health":
+        app.state.last_activity = time.monotonic()
+    return await call_next(request)
+
 
 app.include_router(auth_routes.router)
 app.include_router(downloads.router)

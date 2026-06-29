@@ -128,6 +128,11 @@ class JobQueue:
     def get_job(self, job_id: str) -> Job | None:
         return self._jobs.get(job_id)
 
+    def has_pending(self) -> bool:
+        """True if any job is queued / downloading / converting."""
+        active = {JobStatus.QUEUED, JobStatus.DOWNLOADING, JobStatus.CONVERTING}
+        return any(j.status in active for j in self._jobs.values())
+
     async def submit_urls(self, urls: list[str], options: DownloadOptions) -> list[Job]:
         """Enumerate each URL and enqueue a job per resolved track."""
         created: list[Job] = []

@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8080
 
+    # Auto-stop after this many minutes with no requests and no active downloads.
+    # 0 disables it. Designed for the launcher (which runs with --restart no, so
+    # the process exiting cleanly stops the container). Set 0 for always-on hosts.
+    idle_shutdown_minutes: int = 30
+
     @property
     def spotdl_audio_provider_list(self) -> list[str]:
         return [p.strip() for p in self.spotdl_audio_providers.split(",") if p.strip()]
