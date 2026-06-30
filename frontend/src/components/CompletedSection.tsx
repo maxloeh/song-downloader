@@ -163,11 +163,9 @@ export default function CompletedSection({ jobs, refreshKey }: Props) {
                 <span style={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: 11, color: T.faint2 }}>
                   {g.tracks.length} {g.tracks.length === 1 ? "track" : "tracks"}
                 </span>
-                {g.playlist && (
-                  <a href={api.zipUrl(g.playlist)} style={{ ...ghostBtn, height: 28, padding: "0 10px" }}>
-                    .zip
-                  </a>
-                )}
+                <a href={api.zipGroupUrl(g.key)} style={{ ...ghostBtn, height: 28, padding: "0 10px" }}>
+                  .zip
+                </a>
               </div>
 
               {g.tracks.map(({ job, meta }) => (

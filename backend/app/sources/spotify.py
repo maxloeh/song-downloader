@@ -184,6 +184,14 @@ class SpotifySource:
             if not songs:
                 raise RuntimeError(f"spotDL could not resolve the Spotify URL: {track.url}")
             song = songs[0]
+            # Re-searching a single track loses playlist context, so {list-name}
+            # would be empty and the file would land in the root. Restore it so
+            # the track is saved under its playlist folder.
+            if track.playlist:
+                try:
+                    song.list_name = track.playlist
+                except Exception:
+                    pass
             on_progress(20.0, "downloading", "youtube-music")
             _song, path = client.download(song)
         if path is None:

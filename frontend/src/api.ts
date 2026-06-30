@@ -87,6 +87,9 @@ export const api = {
 
   zipUrl: (path?: string) =>
     `/api/files/zip${path ? `?path=${encodeURIComponent(path)}` : ""}`,
+
+  zipGroupUrl: (group: string) =>
+    `/api/files/zip?group=${encodeURIComponent(group)}`,
 };
 
 /**

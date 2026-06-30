@@ -9,11 +9,12 @@ import io
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
 from ..auth import require_auth
 from ..config import get_settings
+from ..models import JobStatus
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -74,35 +75,62 @@ def download_file(
 
 @router.get("/zip")
 def download_zip(
-    path: str | None = Query(
-        default=None, description="Optional subfolder to zip; defaults to everything"
+    request: Request,
+    path: str | None = Query(default=None, description="Optional subfolder to zip"),
+    group: str | None = Query(
+        default=None, description="Zip a completed group by playlist name ('Singles' = no playlist)"
     ),
     _: str = Depends(require_auth),
 ) -> StreamingResponse:
     root = _download_root()
-    base = _safe_resolve(path) if path else root
-    if not base.exists():
-        raise HTTPException(status_code=404, detail="Nothing to zip")
 
-    files = [
-        p
-        for p in (base.rglob("*") if base.is_dir() else [base])
-        if p.is_file()
-        and p.suffix.lower() in _AUDIO_EXTS
-        and not any(part.startswith(".") for part in p.relative_to(root).parts)
-    ]
+    if group is not None:
+        # Zip a group by its completed jobs' actual files (robust to where the
+        # files physically landed — Spotify tracks may sit in the root, not a
+        # per-playlist folder).
+        files: list[Path] = []
+        seen: set[str] = set()
+        for job in request.app.state.queue.list_jobs():
+            if job.status != JobStatus.DONE or not job.output_path:
+                continue
+            job_group = job.playlist or "Singles"
+            if job_group != group or job.output_path in seen:
+                continue
+            seen.add(job.output_path)
+            p = _safe_resolve(job.output_path)
+            if p.is_file():
+                files.append(p)
+        zip_name = group or "downloads"
+        arc_base = root
+    else:
+        base = _safe_resolve(path) if path else root
+        if not base.exists():
+            raise HTTPException(status_code=404, detail="Nothing to zip")
+        files = [
+            p
+            for p in (base.rglob("*") if base.is_dir() else [base])
+            if p.is_file()
+            and p.suffix.lower() in _AUDIO_EXTS
+            and not any(part.startswith(".") for part in p.relative_to(root).parts)
+        ]
+        zip_name = (base.name or "downloads") if base.is_dir() else base.stem
+        arc_base = base.parent if base.is_dir() else root
+
     if not files:
         raise HTTPException(status_code=404, detail="No audio files to zip")
 
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in files:
-            zf.write(f, arcname=str(f.relative_to(base.parent if base.is_dir() else root)))
+            try:
+                arc = f.relative_to(arc_base)
+            except ValueError:
+                arc = Path(f.name)
+            zf.write(f, arcname=str(arc))
     buffer.seek(0)
 
-    name = (base.name or "downloads") if base.is_dir() else base.stem
     return StreamingResponse(
         buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{name}.zip"'},
+        headers={"Content-Disposition": f'attachment; filename="{zip_name}.zip"'},
     )
