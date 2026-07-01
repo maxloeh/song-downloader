@@ -275,9 +275,10 @@ class JobQueue:
             await self._persist_update(job)
             return
 
-        # Metadata verification / fixups (best-effort).
+        # Metadata verification / fixups (best-effort). Pass the artwork URL so a
+        # cover can be embedded even for WAV (and any file the source didn't tag).
         try:
-            await asyncio.to_thread(verify_and_fix, path)
+            await asyncio.to_thread(verify_and_fix, path, job.artwork_url)
         except Exception as exc:
             log.warning("metadata verify failed for %s: %s", path, exc)
 

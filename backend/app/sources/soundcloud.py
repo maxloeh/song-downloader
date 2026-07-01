@@ -324,9 +324,10 @@ class SoundCloudSource:
 
     def _track_ref(self, t: dict, playlist: str | None) -> TrackRef:
         art = t.get("artwork_url") or (t.get("user") or {}).get("avatar_url")
-        # SoundCloud serves a tiny 100px "-large" by default; request a bigger one.
+        # SoundCloud serves a tiny 100px "-large" by default; request a bigger one
+        # (used both for the UI thumbnail and the embedded cover art).
         if art:
-            art = art.replace("-large.", "-t200x200.")
+            art = art.replace("-large.", "-t500x500.")
         ms = t.get("full_duration") or t.get("duration")
         return TrackRef(
             url=t.get("permalink_url") or t.get("uri"),
